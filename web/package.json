@@ -7,6 +7,7 @@
     "sync-data": "node scripts/build-lab-data.mjs",
     "dev": "npm run sync-data && vite --host 127.0.0.1 --port 4173",
     "build": "npm run sync-data && tsc -b && vite build && node scripts/export-standalone-html.mjs",
+    "build:ci": "tsc -b && vite build",
     "preview": "vite preview --host 127.0.0.1 --port 4173"
   },
   "dependencies": {
