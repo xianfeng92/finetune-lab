@@ -1,5 +1,5 @@
 export const embeddedLabData = {
-  "generated_at": "2026-04-26T13:43:15.241Z",
+  "generated_at": "2026-04-26T13:52:04.331Z",
   "project": {
     "name": "finetune-lab",
     "tagline": "AI-native open-source lab for data generation, fine-tuning, and tool-call behavior.",
@@ -5826,7 +5826,7 @@ export const embeddedLabData = {
     }
   },
   "observatory": {
-    "generated_at": "2026-04-26T13:43:15.230Z",
+    "generated_at": "2026-04-26T13:52:04.321Z",
     "latest_real_run_id": "gemma4-e2b-real-mlx-lora-demo",
     "best_exact_run_id": "gemma4-e2b-real-mlx-lora-large-stage-curriculum-consolidation/stage4-consolidation",
     "best_behavior_run_id": "gemma4-e2b-real-mlx-lora-large-stage-curriculum-consolidation/stage4-consolidation",

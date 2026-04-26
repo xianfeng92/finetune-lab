@@ -207,6 +207,56 @@ function statusLabel(status: RunLiveStatus["status"] | "static") {
   return status;
 }
 
+function latestTrainLoss(run: RunSummary, liveStatus: RunLiveStatus | null) {
+  if (liveStatus?.progress.last_train_loss !== null && liveStatus?.progress.last_train_loss !== undefined) {
+    return liveStatus.progress.last_train_loss;
+  }
+  const lastPoint = run.trainTelemetry[run.trainTelemetry.length - 1];
+  return lastPoint?.loss ?? run.trainingCurve.last_loss ?? run.manifest.avg_loss;
+}
+
+function progressLabel(run: RunSummary, liveStatus: RunLiveStatus | null) {
+  const currentStep = liveStatus?.progress.current_step ?? run.trainingCurve.total_steps;
+  const totalSteps = liveStatus?.plan.total_steps ?? run.manifest.max_steps;
+  if (!totalSteps) return "—";
+  const pct = Math.min(100, Math.max(0, (currentStep / totalSteps) * 100));
+  return `${currentStep}/${totalSteps} · ${pct.toFixed(0)}%`;
+}
+
+function probeLabel(value: number, total: number) {
+  return total ? formatRatio(value, total) : "pending";
+}
+
+function KeyMetricsPanel(props: { run: RunSummary; liveStatus: RunLiveStatus | null }) {
+  const run = props.run;
+  const live = props.liveStatus;
+  const rows = run.probeResults;
+  const behaviorHits = rows.filter((row) => row.behavior_match).length;
+  const lastTrainLoss = latestTrainLoss(run, live);
+  const lastValLoss = live?.progress.last_val_loss ?? run.resourceSummary.last_val_loss;
+  const liveMemory = live?.resources.process_memory_gb;
+  const peakMemory = live?.progress.last_peak_memory_gb ?? run.resourceSummary.peak_memory_gb;
+  return (
+    <section className="panel span-2 observatory-key-panel">
+      <SectionTitle
+        title="Key Metrics"
+        subtitle={<>当前选中 run：<code>{run.manifest.run_id}</code>。训练时先盯这里，再往下看曲线、资源表和 case 级 probe。</>}
+        audience="工程"
+      />
+      <div className="kpi-grid observatory-key-grid">
+        <KpiCard label="status" value={statusLabel(live?.status ?? "static")} hint={live?.updated_at ?? "static snapshot"} accent />
+        <KpiCard label="progress" value={progressLabel(run, live)} hint={`epoch ${live?.progress.current_epoch ?? run.runPlan?.effective_epochs ?? "—"}`} accent />
+        <KpiCard label="train loss" value={formatMaybe(lastTrainLoss, 3)} hint="latest train loss" />
+        <KpiCard label="val loss" value={formatMaybe(lastValLoss, 3)} hint="latest validation loss" />
+        <KpiCard label="exact" value={probeLabel(run.metrics.exactNameMatch, run.metrics.total)} hint="selected run probe" />
+        <KpiCard label="behavior" value={probeLabel(behaviorHits, rows.length)} hint="behavior-level probe" />
+        <KpiCard label="peak mem" value={peakMemory !== null && peakMemory !== undefined ? `${peakMemory.toFixed(2)} GB` : "—"} hint="training peak memory" />
+        <KpiCard label="live mem" value={liveMemory !== null && liveMemory !== undefined ? `${liveMemory.toFixed(2)} GB` : "—"} hint="current process RSS" />
+      </div>
+    </section>
+  );
+}
+
 function RunPicker(props: { runs: RunSummary[]; selectedRunId: string; liveIndex: RunLiveIndex | null; onSelect: (id: string) => void }) {
   return (
     <section className="panel">
@@ -592,6 +642,7 @@ function TrainingObservatoryViewImpl(props: { data: LabData }) {
 
   return (
     <div className="view-grid">
+      <KeyMetricsPanel run={selectedRun} liveStatus={liveStatus} />
       <ObservatoryHero data={props.data} runs={realRuns} liveStatus={indexedLiveStatus} />
       <RunPicker
         runs={realRuns}
