@@ -107,6 +107,10 @@ def build_record(sample: dict, tool_lookup: dict[str, dict]) -> dict:
         "risk": sample["risk"],
         "vehicle_state": sample["vehicle_state"],
         "expected_system_action": sample.get("expected_system_action"),
+        "template_id": sample.get("template_id"),
+        "split_group": sample.get("split_group"),
+        "eval_split": sample.get("eval_split"),
+        "split_strategy": sample.get("split_strategy"),
         "messages": build_messages(sample),
         "tools": [tool_lookup[name] for name in sample["loaded_tool_names"]],
         "loaded_tool_names": sample["loaded_tool_names"],
@@ -125,13 +129,68 @@ def split_eval_records(records: list[dict]) -> tuple[list[dict], list[dict]]:
     test: list[dict] = []
     for category in sorted(grouped):
         bucket = grouped[category]
-        split_index = max(1, math.ceil(len(bucket) / 2))
-        valid.extend(bucket[:split_index])
-        test.extend(bucket[split_index:])
-        if not bucket[split_index:]:
-            test.append(bucket[-1])
-            valid.pop()
+        group_order: list[str] = []
+        by_group: dict[str, list[dict]] = defaultdict(list)
+        for row in bucket:
+            split_group = row.get("split_group") or row["id"]
+            if split_group not in by_group:
+                group_order.append(split_group)
+            by_group[split_group].append(row)
+
+        split_index = max(1, math.ceil(len(group_order) / 2))
+        valid_groups = set(group_order[:split_index])
+        test_groups = set(group_order[split_index:])
+        if not test_groups:
+            moved = group_order[-1]
+            valid_groups.discard(moved)
+            test_groups.add(moved)
+        for split_group in group_order:
+            if split_group in valid_groups:
+                valid.extend(by_group[split_group])
+            else:
+                test.extend(by_group[split_group])
     return valid, test
+
+
+def split_train_valid_records(records: list[dict], valid_ratio: float = 0.1) -> tuple[list[dict], list[dict]]:
+    grouped: dict[str, list[dict]] = defaultdict(list)
+    for record in sorted(records, key=lambda row: row["id"]):
+        grouped[record["category"]].append(record)
+
+    train: list[dict] = []
+    valid: list[dict] = []
+    for category in sorted(grouped):
+        bucket = grouped[category]
+        group_order: list[str] = []
+        by_group: dict[str, list[dict]] = defaultdict(list)
+        for row in bucket:
+            split_group = row.get("split_group") or row["id"]
+            if split_group not in by_group:
+                group_order.append(split_group)
+            by_group[split_group].append(row)
+
+        target = max(1, math.ceil(len(bucket) * valid_ratio))
+        valid_groups: set[str] = set()
+        valid_count = 0
+        for split_group in reversed(group_order):
+            if len(valid_groups) >= max(len(group_order) - 1, 0):
+                break
+            valid_groups.add(split_group)
+            valid_count += len(by_group[split_group])
+            if valid_count >= target:
+                break
+
+        if not valid_groups:
+            split_index = max(1, len(bucket) - target)
+            train.extend(bucket[:split_index])
+            valid.extend(bucket[split_index:])
+            continue
+        for split_group in group_order:
+            if split_group in valid_groups:
+                valid.extend(by_group[split_group])
+            else:
+                train.extend(by_group[split_group])
+    return train, valid
 
 
 def write_jsonl(path: Path, rows: list[dict]) -> None:
@@ -146,6 +205,7 @@ def build_pack(
     schema_path: Path,
     output_dir: Path,
     category_filter: list[str],
+    validation_source: str,
 ) -> dict:
     counts = {
         "train": len(train_rows),
@@ -178,6 +238,7 @@ def build_pack(
         "schema_path": str(schema_path.relative_to(ROOT)),
         "output_dir": str(output_dir.relative_to(ROOT)),
         "category_filter": category_filter,
+        "validation_source": validation_source,
         "counts": counts,
         "categories": {
             split: dict(counter)
@@ -197,7 +258,9 @@ def build_pack(
         },
         "notes": [
             "train split keeps the original SFT teaching samples.",
-            "held-out split is re-sliced into valid/test so MLX LoRA can report validation loss and keep a separate probe set.",
+            "validation_source=held-out re-slices held-out into valid/test for legacy teaching runs.",
+            "When validation_source=train, validation rows come from train groups and the full held-out split remains the probe test set.",
+            "valid/test re-slicing keeps split_group intact so strict benchmark templates do not straddle validation and probe sets.",
             "assistant tool calls are rewritten into OpenAI-style function calls for tokenizer.apply_chat_template(..., tools=...).",
             "behavior labels are preserved so later eval layers can distinguish tool_call / clarify / handoff style decisions.",
             "risk and vehicle_state are preserved so later eval layers can reason about safety context instead of only tool names.",
@@ -213,6 +276,7 @@ def main() -> None:
     parser.add_argument("--schema", type=Path, default=DEFAULT_SCHEMA_PATH)
     parser.add_argument("--output-dir", type=Path, required=True)
     parser.add_argument("--pack-output", type=Path, required=True)
+    parser.add_argument("--validation-source", choices=["held-out", "train"], default="held-out")
     parser.add_argument(
         "--category-filter",
         action="append",
@@ -236,7 +300,11 @@ def main() -> None:
 
     train_rows = [build_record(sample, tool_lookup) for sample in train_samples]
     held_out_rows = [build_record(sample, tool_lookup) for sample in held_out_samples]
-    valid_rows, test_rows = split_eval_records(held_out_rows)
+    if args.validation_source == "train":
+        train_rows, valid_rows = split_train_valid_records(train_rows)
+        test_rows = held_out_rows
+    else:
+        valid_rows, test_rows = split_eval_records(held_out_rows)
 
     write_jsonl(args.output_dir / "train.jsonl", train_rows)
     write_jsonl(args.output_dir / "valid.jsonl", valid_rows)
@@ -249,6 +317,7 @@ def main() -> None:
         args.schema.resolve(),
         args.output_dir.resolve(),
         category_filter,
+        args.validation_source,
     )
     args.pack_output.parent.mkdir(parents=True, exist_ok=True)
     args.pack_output.write_text(json.dumps(pack, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")

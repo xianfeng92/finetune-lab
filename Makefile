@@ -22,6 +22,10 @@ LARGE_DATASET_DIR ?= $(ROOT)/data/sft/v1-gemma4-e2b-large
 LARGE_FULL_DATASET ?= $(LARGE_DATASET_DIR)/samples.jsonl
 LARGE_TRAIN_DATASET ?= $(LARGE_DATASET_DIR)/train.jsonl
 LARGE_HELD_OUT_DATASET ?= $(LARGE_DATASET_DIR)/held-out.jsonl
+BENCHMARK_DATASET_DIR ?= $(ROOT)/data/sft/v1-gemma4-e2b-benchmark
+BENCHMARK_FULL_DATASET ?= $(BENCHMARK_DATASET_DIR)/samples.jsonl
+BENCHMARK_TRAIN_DATASET ?= $(BENCHMARK_DATASET_DIR)/train.jsonl
+BENCHMARK_HELD_OUT_DATASET ?= $(BENCHMARK_DATASET_DIR)/held-out.jsonl
 REAL_FT_DATA_DIR ?= $(ROOT)/data/real-finetune/v1-gemma4-e2b-toolcall-demo
 REAL_FT_PACK ?= $(ROOT)/outputs/real/real-finetune-dataset-pack.json
 MEDIUM_REAL_FT_DATA_DIR ?= $(ROOT)/data/real-finetune/v1-gemma4-e2b-medium
@@ -30,10 +34,14 @@ MEDIUM_PUBLIC_AUG_REAL_FT_DATA_DIR ?= $(ROOT)/data/real-finetune/v1-gemma4-e2b-m
 MEDIUM_PUBLIC_AUG_REAL_FT_PACK ?= $(ROOT)/outputs/real/real-finetune-dataset-pack-medium-public-augmented.json
 LARGE_REAL_FT_DATA_DIR ?= $(ROOT)/data/real-finetune/v1-gemma4-e2b-large
 LARGE_REAL_FT_PACK ?= $(ROOT)/outputs/real/real-finetune-dataset-pack-large.json
+BENCHMARK_REAL_FT_DATA_DIR ?= $(ROOT)/data/real-finetune/v1-gemma4-e2b-benchmark
+BENCHMARK_REAL_FT_PACK ?= $(ROOT)/outputs/real/real-finetune-dataset-pack-benchmark.json
 REAL_SMALL_DIRECT_OUTPUT_DIR ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-small-direct
 REAL_MEDIUM_DIRECT_OUTPUT_DIR ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-medium-direct
 REAL_MEDIUM_PUBLIC_AUG_DIRECT_OUTPUT_DIR ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-medium-public-augmented-direct
 REAL_LARGE_DIRECT_OUTPUT_DIR ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-large-direct
+REAL_BENCHMARK_DIRECT_OUTPUT_DIR ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-benchmark-direct
+REAL_BENCHMARK_BASE_OUTPUT_DIR ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-base-benchmark
 REAL_CATEGORY_FILTER ?=
 REAL_ITERS ?=
 REAL_EPOCHS ?=
@@ -82,7 +90,7 @@ REAL_MEDIUM_CROSS_DOMAIN_MICRO_REFRESH_EPOCHS ?= 0.25
 MODEL_NAME ?= demo/gemma-4-e2b-it
 REAL_MODEL_NAME ?= mlx-community/gemma-4-e2b-it-4bit
 
-.PHONY: help ai-onboarding ai-setup ai-lab bootstrap-data bootstrap-real-finetune data-demo data-medium data-medium-public-augmented data-large import-car-bench import-clarifyvc test-data env-probe smoke-train-mac probe-mac smoke-train-mac-100 probe-mac-100 compare-probes behavior-eval-pack level1-pack gemma-track-pack real-finetune-data real-finetune-data-medium real-finetune-data-medium-public-augmented real-finetune-data-large real-train-mac real-probe-mac real-mini-lab real-small-direct-compare real-medium-direct-compare real-medium-public-augmented-direct-compare real-large-direct-compare real-single-tool-compare real-stage-curriculum real-stage-curriculum-consolidation real-medium-stage-curriculum-consolidation real-medium-public-augmented-stage-curriculum-consolidation real-large-stage-curriculum-consolidation real-stage-curriculum-replay real-tail-polish real-medium-cross-domain-focus-refresh data-scale-compare-pack level5-pack level6-demo dataset-governance web-install web-sync-data web-dev web-build
+.PHONY: help ai-onboarding ai-setup ai-lab bootstrap-data bootstrap-real-finetune data-demo data-medium data-medium-public-augmented data-large data-benchmark import-car-bench import-clarifyvc test-data env-probe smoke-train-mac probe-mac smoke-train-mac-100 probe-mac-100 compare-probes behavior-eval-pack level1-pack gemma-track-pack real-finetune-data real-finetune-data-medium real-finetune-data-medium-public-augmented real-finetune-data-large real-finetune-data-benchmark real-train-mac real-probe-mac real-probe-base-mac real-mini-lab real-small-direct-compare real-medium-direct-compare real-medium-public-augmented-direct-compare real-large-direct-compare real-benchmark-direct-compare real-medium-direct-budget-compare real-large-direct-budget-compare real-single-tool-compare real-stage-curriculum real-stage-curriculum-consolidation real-medium-stage-curriculum-consolidation real-medium-public-augmented-stage-curriculum-consolidation real-large-stage-curriculum-consolidation real-stage-curriculum-replay real-tail-polish real-medium-cross-domain-focus-refresh data-scale-compare-pack level5-pack level6-demo dataset-governance web-install web-sync-data web-dev web-build
 
 help:
 	@echo "Available targets:"
@@ -95,6 +103,7 @@ help:
 	@echo "  data-medium         Generate a medium Gemma 4 SFT dataset (400 train / 100 held-out)"
 	@echo "  data-medium-public-augmented Build a medium dataset augmented with imported public samples"
 	@echo "  data-large          Generate a large Gemma 4 SFT dataset (800 train / 200 held-out)"
+	@echo "  data-benchmark      Generate strict group-heldout benchmark data"
 	@echo "  import-car-bench    Download CAR-Bench task files and build a finetune-lab mapping preview"
 	@echo "  import-clarifyvc    Mirror ClarifyVC OpenReview artifacts and build a protocol-seed mapping preview"
 	@echo "  test-data           Run data pipeline tests"
@@ -111,14 +120,19 @@ help:
 	@echo "  real-finetune-data-medium Convert the medium SFT dataset into MLX chat+tools format"
 	@echo "  real-finetune-data-medium-public-augmented Convert the public-augmented medium dataset into MLX chat+tools format"
 	@echo "  real-finetune-data-large Convert the large SFT dataset into MLX chat+tools format"
+	@echo "  real-finetune-data-benchmark Convert group-heldout benchmark data into MLX format"
 	@echo "  real-train-mac      Run a real MLX LoRA mini fine-tune on Gemma 4 E2B-it"
 	@echo "  real-probe-mac      Run best-effort real probe on the MLX LoRA adapters"
+	@echo "  real-probe-base-mac Probe base checkpoint without an adapter"
 	@echo "  real-mini-lab       Refresh real dataset, run real MLX LoRA, and probe it"
 	@echo "  real-small-direct-compare Run a 1-epoch direct small-data LoRA compare baseline"
 	@echo "  real-medium-direct-compare Run a 1-epoch direct medium-data LoRA compare baseline"
 	@echo "  real-medium-public-augmented-direct-compare Run a 1-epoch direct public-augmented medium LoRA baseline"
 	@echo "  real-medium-public-augmented-stage-curriculum-consolidation Run the public-augmented medium staged curriculum and consolidation path"
 	@echo "  real-large-direct-compare Run a 1-epoch direct large-data LoRA compare baseline"
+	@echo "  real-benchmark-direct-compare Run direct LoRA on strict group-heldout benchmark data"
+	@echo "  real-medium-direct-budget-compare Run 4-epoch medium direct baseline for curriculum budget parity"
+	@echo "  real-large-direct-budget-compare Run 4-epoch large direct baseline for curriculum budget parity"
 	@echo "  real-single-tool-compare Run a 3-epoch single_domain_single_tool control experiment"
 	@echo "  real-stage-curriculum Run single_tool -> reroute/meta -> multi_tool staged curriculum"
 	@echo "  real-stage-curriculum-consolidation Run staged curriculum, then add a short full-mixed consolidation stage"
@@ -178,6 +192,9 @@ data-medium-public-augmented:
 data-large:
 	cd $(ROOT) && $(DATA_PYTHON) training/data_pipeline/pipeline.py --output-dir data/sft/v1-gemma4-e2b-large --multiplier 10
 
+data-benchmark:
+	cd $(ROOT) && $(DATA_PYTHON) training/data_pipeline/pipeline.py --output-dir $(BENCHMARK_DATASET_DIR) --multiplier 5 --split-strategy group
+
 import-car-bench:
 	cd $(ROOT) && $(DATA_PYTHON) training/data_pipeline/import_car_bench.py
 
@@ -226,11 +243,17 @@ real-finetune-data-medium-public-augmented:
 real-finetune-data-large:
 	cd $(ROOT) && $(PYTHON) training/finetune/build_real_finetune_dataset.py --train-dataset $(LARGE_TRAIN_DATASET) --held-out-dataset $(LARGE_HELD_OUT_DATASET) --output-dir $(LARGE_REAL_FT_DATA_DIR) --pack-output $(LARGE_REAL_FT_PACK)
 
+real-finetune-data-benchmark:
+	cd $(ROOT) && $(PYTHON) training/finetune/build_real_finetune_dataset.py --train-dataset $(BENCHMARK_TRAIN_DATASET) --held-out-dataset $(BENCHMARK_HELD_OUT_DATASET) --output-dir $(BENCHMARK_REAL_FT_DATA_DIR) --pack-output $(BENCHMARK_REAL_FT_PACK) --validation-source train
+
 real-train-mac:
 	cd $(ROOT) && $(PYTHON) training/finetune/mlx_real_lora_train.py --mlx-lora-cmd $(REAL_MLX_LORA) --model-name $(REAL_MODEL_NAME) --data-dir $(REAL_FT_DATA_DIR) --output-dir $(REAL_OUTPUT_DIR) $(if $(REAL_ITERS),--iters $(REAL_ITERS)) $(if $(REAL_EPOCHS),--epochs $(REAL_EPOCHS)) $(if $(REAL_RESUME_ADAPTER_FILE),--resume-adapter-file $(REAL_RESUME_ADAPTER_FILE)) $(if $(REAL_STEPS_PER_REPORT),--steps-per-report $(REAL_STEPS_PER_REPORT)) $(if $(REAL_STEPS_PER_EVAL),--steps-per-eval $(REAL_STEPS_PER_EVAL)) $(if $(REAL_SAVE_EVERY),--save-every $(REAL_SAVE_EVERY))
 
 real-probe-mac:
 	cd $(ROOT) && $(REAL_TRAIN_PYTHON) training/finetune/mlx_real_probe.py --model-name $(REAL_MODEL_NAME) --dataset $(REAL_PROBE_DATASET) --run-dir $(REAL_OUTPUT_DIR) $(if $(REAL_PROBE_MAX_SAMPLES),--max-samples $(REAL_PROBE_MAX_SAMPLES))
+
+real-probe-base-mac:
+	cd $(ROOT) && $(REAL_TRAIN_PYTHON) training/finetune/mlx_real_probe.py --model-name $(REAL_MODEL_NAME) --dataset $(REAL_PROBE_DATASET) --run-dir $(REAL_BENCHMARK_BASE_OUTPUT_DIR) --base-only $(if $(REAL_PROBE_MAX_SAMPLES),--max-samples $(REAL_PROBE_MAX_SAMPLES))
 
 real-mini-lab:
 	$(MAKE) -C $(ROOT) bootstrap-real-finetune
@@ -260,6 +283,22 @@ real-large-direct-compare:
 	$(MAKE) -C $(ROOT) real-finetune-data-large
 	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(LARGE_REAL_FT_DATA_DIR) REAL_OUTPUT_DIR=$(REAL_LARGE_DIRECT_OUTPUT_DIR) REAL_PROBE_DATASET=$(LARGE_REAL_FT_DATA_DIR)/test.jsonl REAL_EPOCHS=1 REAL_STEPS_PER_REPORT=40 REAL_STEPS_PER_EVAL=160 REAL_SAVE_EVERY=160
 	$(MAKE) -C $(ROOT) real-probe-mac REAL_OUTPUT_DIR=$(REAL_LARGE_DIRECT_OUTPUT_DIR) REAL_PROBE_DATASET=$(LARGE_REAL_FT_DATA_DIR)/test.jsonl REAL_PROBE_MAX_SAMPLES=96
+
+real-benchmark-direct-compare:
+	$(MAKE) -C $(ROOT) data-benchmark
+	$(MAKE) -C $(ROOT) real-finetune-data-benchmark
+	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(BENCHMARK_REAL_FT_DATA_DIR) REAL_OUTPUT_DIR=$(REAL_BENCHMARK_DIRECT_OUTPUT_DIR) REAL_PROBE_DATASET=$(BENCHMARK_REAL_FT_DATA_DIR)/test.jsonl REAL_EPOCHS=1 REAL_STEPS_PER_REPORT=20 REAL_STEPS_PER_EVAL=80 REAL_SAVE_EVERY=80
+	$(MAKE) -C $(ROOT) real-probe-mac REAL_OUTPUT_DIR=$(REAL_BENCHMARK_DIRECT_OUTPUT_DIR) REAL_PROBE_DATASET=$(BENCHMARK_REAL_FT_DATA_DIR)/test.jsonl
+
+real-medium-direct-budget-compare:
+	$(MAKE) -C $(ROOT) real-finetune-data-medium
+	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(MEDIUM_REAL_FT_DATA_DIR) REAL_OUTPUT_DIR=$(ROOT)/outputs/gemma4-e2b-real-mlx-lora-medium-direct-4epoch REAL_PROBE_DATASET=$(MEDIUM_REAL_FT_DATA_DIR)/test.jsonl REAL_EPOCHS=4 REAL_STEPS_PER_REPORT=40 REAL_STEPS_PER_EVAL=160 REAL_SAVE_EVERY=160
+	$(MAKE) -C $(ROOT) real-probe-mac REAL_OUTPUT_DIR=$(ROOT)/outputs/gemma4-e2b-real-mlx-lora-medium-direct-4epoch REAL_PROBE_DATASET=$(MEDIUM_REAL_FT_DATA_DIR)/test.jsonl REAL_PROBE_MAX_SAMPLES=48
+
+real-large-direct-budget-compare:
+	$(MAKE) -C $(ROOT) real-finetune-data-large
+	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(LARGE_REAL_FT_DATA_DIR) REAL_OUTPUT_DIR=$(ROOT)/outputs/gemma4-e2b-real-mlx-lora-large-direct-4epoch REAL_PROBE_DATASET=$(LARGE_REAL_FT_DATA_DIR)/test.jsonl REAL_EPOCHS=4 REAL_STEPS_PER_REPORT=80 REAL_STEPS_PER_EVAL=320 REAL_SAVE_EVERY=320
+	$(MAKE) -C $(ROOT) real-probe-mac REAL_OUTPUT_DIR=$(ROOT)/outputs/gemma4-e2b-real-mlx-lora-large-direct-4epoch REAL_PROBE_DATASET=$(LARGE_REAL_FT_DATA_DIR)/test.jsonl REAL_PROBE_MAX_SAMPLES=96
 
 real-single-tool-compare:
 	$(MAKE) -C $(ROOT) real-finetune-data REAL_FT_DATA_DIR=$(REAL_SINGLE_TOOL_DATA_DIR) REAL_FT_PACK=$(REAL_SINGLE_TOOL_PACK) REAL_CATEGORY_FILTER=single_domain_single_tool

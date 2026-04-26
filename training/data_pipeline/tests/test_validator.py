@@ -20,6 +20,9 @@ def test_generated_samples_validate() -> None:
     assert errors == []
     assert {sample["behavior"] for sample in samples} == {"tool_call", "clarify", "handoff", "confirm", "reject"}
     assert all("behavior" in sample for sample in samples)
+    assert all("template_id" in sample for sample in samples)
+    assert all("split_group" in sample for sample in samples)
+    assert all(sample["eval_split"] == "unassigned" for sample in samples)
     assert {sample["risk"] for sample in samples} == {"low", "medium", "high"}
     assert all("vehicle_state" in sample for sample in samples)
     assert all(set(sample["vehicle_state"].keys()) == {"speed_kph", "power_state"} for sample in samples)
@@ -49,3 +52,15 @@ def test_split_samples_produces_category_held_out_set() -> None:
         "confirm_required_action": 1,
         "reject_unsafe_action": 1,
     }
+
+
+def test_group_split_keeps_templates_out_of_train() -> None:
+    samples = generate_samples(multiplier=5)
+    train_samples, held_out_samples = split_samples(samples, split_strategy="group")
+
+    train_groups = {sample["split_group"] for sample in train_samples}
+    held_out_groups = {sample["split_group"] for sample in held_out_samples}
+
+    assert train_groups.isdisjoint(held_out_groups)
+    assert {sample["eval_split"] for sample in train_samples} == {"train"}
+    assert {sample["eval_split"] for sample in held_out_samples} == {"unseen_template"}

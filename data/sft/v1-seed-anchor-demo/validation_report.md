@@ -5,7 +5,11 @@
 - held_out_samples: 20
 - multiplier: 1
 - held_out_ratio: 0.2
-- avg_loaded_tool_count: 2.23
+- split_strategy: row_tail
+- unique_user_prompt_count: 26
+- unique_template_id_count: 26
+- unique_split_group_count: 26
+- avg_loaded_tool_count: 2.28
 - avg_expected_tool_call_count: 1.2
 - multi_tool_sample_count: 30
 - event_driven_sample_count: 10
@@ -33,6 +37,13 @@
 - confirm_required_action: train=4 held_out=1
 - reject_unsafe_action: train=4 held_out=1
 
+## Benchmark Leakage Checks
+
+- held_out_prompt_overlap_with_train: 20
+- held_out_split_group_overlap_with_train: 20
+- held_out_exact_target_overlap_with_train: 20
+- held_out_count: 20
+
 ## Behavior Counts
 
 - tool_call: 70
@@ -43,8 +54,8 @@
 
 ## Risk Counts
 
-- low: 38
-- medium: 33
+- low: 41
+- medium: 30
 - high: 29
 
 ## Expected System Actions

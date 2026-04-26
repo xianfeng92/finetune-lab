@@ -217,6 +217,29 @@ make real-stage-curriculum-replay
 - 当前实测里，`real-stage-curriculum-consolidation` 已经把 mixed-task probe 推到 `7/8 exact_name_match`、`8/8 structured_output_valid`、`6/8 arguments_match`
 - 当前实测里，`real-stage-curriculum-replay` 最终是 `2/8 exact_name_match`、`6/8 structured_output_valid`，还没有超过 direct mixed-task `3 epoch` 的 `4/8`
 
+## Workflow 3.6: Strict Benchmark Split
+
+```bash
+make data-benchmark
+make real-finetune-data-benchmark
+make real-probe-base-mac REAL_PROBE_DATASET=data/real-finetune/v1-gemma4-e2b-benchmark/test.jsonl
+make real-benchmark-direct-compare
+```
+
+作用：
+
+- 用 `split_strategy=group` 生成严肃 benchmark 数据，不再让同一个 `split_group` 同时出现在 train 和 held-out
+- 每条样本保留 `template_id / split_group / eval_split / split_strategy`
+- `dataset_summary.json` 会报告 `benchmark_leakage`，其中 prompt/input、split_group、exact target 三类 train/held-out overlap 都应为 `0`
+- `real-finetune-data-benchmark` 使用 `validation_source=train`，把 validation 从 train groups 中留出，完整 held-out 则作为 final probe test set
+- `real-probe-base-mac` 可先跑无 adapter base baseline，再和 LoRA run 对比
+
+当前生成口径：
+
+- `data/sft/v1-gemma4-e2b-benchmark`: `500 total / 356 train / 144 held-out`
+- `data/real-finetune/v1-gemma4-e2b-benchmark`: `230 train / 126 valid / 144 test`
+- `benchmark_leakage`: prompt/input overlap `0`，split_group overlap `0`，exact target overlap `0`
+
 用户导向说明：
 
 - [docs/ai/gemma4-real-finetune-guide.md](/Users/xforg/AI_SPACE/finetune-lab/docs/ai/gemma4-real-finetune-guide.md)

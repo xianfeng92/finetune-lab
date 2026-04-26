@@ -61,6 +61,13 @@ SAMPLE_SCHEMA = {
         "loaded_tool_names": {"type": "array", "items": {"type": "string"}},
         "system_prompt": {"type": "string"},
         "messages": {"type": "array"},
+        "template_id": {"type": "string"},
+        "split_group": {"type": "string"},
+        "eval_split": {
+            "type": "string",
+            "enum": ["unassigned", "train", "seen_template", "unseen_template", "public_external"],
+        },
+        "split_strategy": {"type": "string"},
         "event": {"type": "object"},
         "meta": {
             "type": "object",

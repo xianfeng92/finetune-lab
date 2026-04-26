@@ -1,8 +1,10 @@
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 from collections import Counter
+from copy import deepcopy
 from pathlib import Path
 
 from adversarial import mark_adversarial
@@ -59,6 +61,29 @@ REROUTE_PROMPTS = [
     ("车里太闷了，想透透气", "window"),
     ("车里太冷了，想把空调调暖一点", "hvac"),
     ("我想把门都锁上", "door"),
+]
+
+FULL_TOOL_FALLBACK_VARIANTS = [
+    (
+        "把车里弄舒服一点",
+        ["hvac", "window"],
+        "request is too broad for a single deterministic tool path",
+    ),
+    (
+        "现在这个状态帮我调整一下",
+        ["hvac", "seat"],
+        "request is underspecified and needs a target comfort domain",
+    ),
+    (
+        "帮我处理一下车里的情况",
+        ["hvac", "window", "seat"],
+        "request lacks enough detail to choose a single action",
+    ),
+    (
+        "车里有点不对劲，你看着办",
+        ["hvac", "window"],
+        "request is ambiguous and should be clarified before execution",
+    ),
 ]
 
 SINGLE_DOMAIN_MULTI_TOOL_CHAIN_VARIANTS = [
@@ -149,6 +174,59 @@ DEFAULT_VEHICLE_STATE = {
 }
 
 
+def stable_id(prefix: str, payload: object, length: int = 12) -> str:
+    encoded = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
+    return f"{prefix}-{hashlib.sha1(encoded).hexdigest()[:length]}"
+
+
+def user_prompt_from_sample(sample: dict) -> str:
+    prompt = next((message.get("content", "") for message in sample["messages"] if message.get("role") == "user"), "")
+    if prompt:
+        return prompt
+    event = sample.get("event") or {}
+    return f"event:{event.get('id', 'none')}"
+
+
+def expected_calls_from_sample(sample: dict) -> list[dict]:
+    return sample["messages"][-1].get("tool_calls", []) if sample.get("messages") else []
+
+
+def benchmark_fingerprint(sample: dict) -> tuple:
+    return (
+        sample["category"],
+        user_prompt_from_sample(sample),
+        json.dumps(expected_calls_from_sample(sample), ensure_ascii=False, sort_keys=True),
+        json.dumps(sample.get("expected_system_action"), ensure_ascii=False, sort_keys=True),
+    )
+
+
+def benchmark_metadata(
+    category: str,
+    user_prompt: str,
+    tool_calls: list[dict],
+    expected_system_action: dict | None,
+    event: dict | None,
+) -> dict:
+    template_payload = {
+        "category": category,
+        "prompt": user_prompt,
+        "tool_names": [call["name"] for call in tool_calls],
+        "event_id": event.get("id") if event else None,
+        "system_action_type": expected_system_action.get("type") if expected_system_action else None,
+    }
+    split_payload = {
+        "category": category,
+        "prompt": user_prompt,
+        "tool_calls": tool_calls,
+        "expected_system_action": expected_system_action,
+        "event_id": event.get("id") if event else None,
+    }
+    return {
+        "template_id": stable_id("tpl", template_payload),
+        "split_group": stable_id("grp", split_payload),
+    }
+
+
 def risk_for_domains(domains: list[str]) -> str:
     highest = "low"
     for domain in domains:
@@ -196,6 +274,7 @@ def build_system_prompt(loaded_tools: list[dict], vehicle_state: dict, event: di
 
 def build_sample(sample_id: int, category: str, loaded_tools: list[dict], user_prompt: str, tool_calls: list[dict], provider_name: str, vehicle_state: dict, risk: str, event: dict | None = None, assistant_content: str | None = None, expected_system_action: dict | None = None) -> dict:
     behavior = CATEGORY_BEHAVIOR[category]
+    benchmark = benchmark_metadata(category, user_prompt, tool_calls, expected_system_action, event)
     messages = []
     if category != "proactive_event_driven":
         messages.append({"role": "user", "content": user_prompt})
@@ -214,6 +293,10 @@ def build_sample(sample_id: int, category: str, loaded_tools: list[dict], user_p
         "loaded_tool_names": [tool["name"] for tool in loaded_tools],
         "system_prompt": system_prompt,
         "messages": messages,
+        "template_id": benchmark["template_id"],
+        "split_group": benchmark["split_group"],
+        "eval_split": "unassigned",
+        "split_strategy": "unassigned",
         "meta": {
             "prompt_token_count": len(system_prompt),
             "generator_model": provider_name,
@@ -267,9 +350,9 @@ def generate_samples(multiplier: int = 1) -> list[dict]:
                 target_domains = [suggested]
             elif category == "full_tool_fallback":
                 loaded_tools = sample_loaded_tools(schema, domains, include_meta=True)
-                prompt = "把车里弄舒服一点"
-                tool_calls = [{"name": "_meta_reroute", "arguments": {"suggested_domains": ["hvac", "window"], "reason": "request is too broad for a single deterministic tool path"}}]
-                target_domains = ["hvac", "window"]
+                prompt, suggested_domains, reason = FULL_TOOL_FALLBACK_VARIANTS[offset % len(FULL_TOOL_FALLBACK_VARIANTS)]
+                tool_calls = [{"name": "_meta_reroute", "arguments": {"suggested_domains": suggested_domains, "reason": reason}}]
+                target_domains = suggested_domains
             elif category == "confirm_required_action":
                 variant = CONFIRM_ACTION_VARIANTS[offset % len(CONFIRM_ACTION_VARIANTS)]
                 loaded_tools = sample_loaded_tools(schema, variant["domains"], include_meta=True)
@@ -347,7 +430,17 @@ def generate_samples(multiplier: int = 1) -> list[dict]:
     return samples
 
 
-def split_samples(samples: list[dict], held_out_ratio: float = 0.2) -> tuple[list[dict], list[dict]]:
+def annotate_eval_split(samples: list[dict], eval_split: str, split_strategy: str) -> list[dict]:
+    annotated: list[dict] = []
+    for sample in samples:
+        row = deepcopy(sample)
+        row["eval_split"] = eval_split
+        row["split_strategy"] = split_strategy
+        annotated.append(row)
+    return annotated
+
+
+def split_samples_by_row_tail(samples: list[dict], held_out_ratio: float) -> tuple[list[dict], list[dict]]:
     grouped: dict[str, list[dict]] = {}
     for sample in samples:
         grouped.setdefault(sample["category"], []).append(sample)
@@ -364,6 +457,61 @@ def split_samples(samples: list[dict], held_out_ratio: float = 0.2) -> tuple[lis
     return train_samples, held_out_samples
 
 
+def split_samples_by_group(samples: list[dict], held_out_ratio: float) -> tuple[list[dict], list[dict]]:
+    grouped: dict[str, list[dict]] = {}
+    for sample in samples:
+        grouped.setdefault(sample["category"], []).append(sample)
+
+    train_samples: list[dict] = []
+    held_out_samples: list[dict] = []
+    for category, category_samples in grouped.items():
+        group_order: list[str] = []
+        by_split_group: dict[str, list[dict]] = {}
+        for sample in category_samples:
+            split_group = sample.get("split_group") or stable_id("grp", benchmark_fingerprint(sample))
+            if split_group not in by_split_group:
+                group_order.append(split_group)
+                by_split_group[split_group] = []
+            by_split_group[split_group].append(sample)
+
+        target = max(1, round(len(category_samples) * held_out_ratio))
+        held_out_groups: set[str] = set()
+        category_held_out: list[dict] = []
+        for split_group in reversed(group_order):
+            category_held_out.extend(by_split_group[split_group])
+            held_out_groups.add(split_group)
+            if len(category_held_out) >= target:
+                break
+
+        category_train = [
+            sample
+            for sample in category_samples
+            if (sample.get("split_group") or stable_id("grp", benchmark_fingerprint(sample))) not in held_out_groups
+        ]
+        if not category_train:
+            raise ValueError(f"group split left category without train samples: {category}")
+        train_samples.extend(category_train)
+        held_out_samples.extend(category_held_out)
+
+    return train_samples, held_out_samples
+
+
+def split_samples(samples: list[dict], held_out_ratio: float = 0.2, split_strategy: str = "row_tail") -> tuple[list[dict], list[dict]]:
+    if split_strategy == "row_tail":
+        train_samples, held_out_samples = split_samples_by_row_tail(samples, held_out_ratio)
+        return (
+            annotate_eval_split(train_samples, "train", split_strategy),
+            annotate_eval_split(held_out_samples, "seen_template", split_strategy),
+        )
+    if split_strategy == "group":
+        train_samples, held_out_samples = split_samples_by_group(samples, held_out_ratio)
+        return (
+            annotate_eval_split(train_samples, "train", split_strategy),
+            annotate_eval_split(held_out_samples, "unseen_template", split_strategy),
+        )
+    raise ValueError(f"unknown split_strategy: {split_strategy}")
+
+
 def write_jsonl(path: Path, rows: list[dict]) -> None:
     path.write_text(
         "\n".join(json.dumps(row, ensure_ascii=False) for row in rows) + "\n",
@@ -378,6 +526,7 @@ def build_summary_payload(
     output_dir: Path,
     multiplier: int,
     held_out_ratio: float,
+    split_strategy: str,
     errors: list[str],
 ) -> dict:
     category_counts = Counter(sample["category"] for sample in samples)
@@ -394,21 +543,37 @@ def build_summary_payload(
     expected_tool_call_total = sum(len(sample["messages"][-1].get("tool_calls", [])) for sample in samples)
     multi_tool_count = sum(1 for sample in samples if len(sample["messages"][-1].get("tool_calls", [])) > 1)
     event_driven_count = sum(1 for sample in samples if sample["category"] == "proactive_event_driven")
+    train_prompts = {user_prompt_from_sample(sample) for sample in train_samples}
+    train_groups = {sample.get("split_group") for sample in train_samples}
+    train_fingerprints = {benchmark_fingerprint(sample) for sample in train_samples}
+    held_out_prompt_overlap = sum(1 for sample in held_out_samples if user_prompt_from_sample(sample) in train_prompts)
+    held_out_group_overlap = sum(1 for sample in held_out_samples if sample.get("split_group") in train_groups)
+    held_out_exact_overlap = sum(1 for sample in held_out_samples if benchmark_fingerprint(sample) in train_fingerprints)
     return {
         "title": "SFT dataset summary",
         "output_dir": str(output_dir),
         "multiplier": multiplier,
         "held_out_ratio": held_out_ratio,
+        "split_strategy": split_strategy,
         "counts": {
             "total": len(samples),
             "train": len(train_samples),
             "held_out": len(held_out_samples),
         },
         "shape": {
+            "unique_user_prompt_count": len({user_prompt_from_sample(sample) for sample in samples}),
+            "unique_template_id_count": len({sample.get("template_id") for sample in samples}),
+            "unique_split_group_count": len({sample.get("split_group") for sample in samples}),
             "avg_loaded_tool_count": round(loaded_tool_count_total / max(len(samples), 1), 2),
             "avg_expected_tool_call_count": round(expected_tool_call_total / max(len(samples), 1), 2),
             "multi_tool_sample_count": multi_tool_count,
             "event_driven_sample_count": event_driven_count,
+        },
+        "benchmark_leakage": {
+            "held_out_prompt_overlap_with_train": held_out_prompt_overlap,
+            "held_out_split_group_overlap_with_train": held_out_group_overlap,
+            "held_out_exact_target_overlap_with_train": held_out_exact_overlap,
+            "held_out_count": len(held_out_samples),
         },
         "categories": {
             category: {
@@ -451,6 +616,10 @@ def write_summary(summary_path_base: Path, summary: dict) -> None:
         f"- held_out_samples: {summary['counts']['held_out']}",
         f"- multiplier: {summary['multiplier']}",
         f"- held_out_ratio: {summary['held_out_ratio']}",
+        f"- split_strategy: {summary['split_strategy']}",
+        f"- unique_user_prompt_count: {summary['shape']['unique_user_prompt_count']}",
+        f"- unique_template_id_count: {summary['shape']['unique_template_id_count']}",
+        f"- unique_split_group_count: {summary['shape']['unique_split_group_count']}",
         f"- avg_loaded_tool_count: {summary['shape']['avg_loaded_tool_count']}",
         f"- avg_expected_tool_call_count: {summary['shape']['avg_expected_tool_call_count']}",
         f"- multi_tool_sample_count: {summary['shape']['multi_tool_sample_count']}",
@@ -465,6 +634,9 @@ def write_summary(summary_path_base: Path, summary: dict) -> None:
     report_lines.extend(["", "## Train / Held-out Split", ""])
     for category, counts in summary["categories"].items():
         report_lines.append(f"- {category}: train={counts['train']} held_out={counts['held_out']}")
+    report_lines.extend(["", "## Benchmark Leakage Checks", ""])
+    for key, value in summary["benchmark_leakage"].items():
+        report_lines.append(f"- {key}: {value}")
     report_lines.extend(["", "## Behavior Counts", ""])
     for behavior, count in summary["behaviors"].items():
         report_lines.append(f"- {behavior}: {count}")
@@ -485,9 +657,10 @@ def write_summary(summary_path_base: Path, summary: dict) -> None:
     (summary_path_base.with_suffix(".md")).write_text("\n".join(report_lines) + "\n", encoding="utf-8")
 
 
-def write_outputs(samples: list[dict], output_dir: Path, multiplier: int = 1, held_out_ratio: float = 0.2) -> None:
+def write_outputs(samples: list[dict], output_dir: Path, multiplier: int = 1, held_out_ratio: float = 0.2, split_strategy: str = "row_tail") -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
-    train_samples, held_out_samples = split_samples(samples, held_out_ratio=held_out_ratio)
+    train_samples, held_out_samples = split_samples(samples, held_out_ratio=held_out_ratio, split_strategy=split_strategy)
+    samples = train_samples + held_out_samples
     samples_path = output_dir / "samples.jsonl"
     train_path = output_dir / "train.jsonl"
     held_out_path = output_dir / "held-out.jsonl"
@@ -502,6 +675,7 @@ def write_outputs(samples: list[dict], output_dir: Path, multiplier: int = 1, he
         output_dir,
         multiplier,
         held_out_ratio,
+        split_strategy,
         errors,
     )
     write_summary(output_dir / "dataset_summary", summary)
@@ -556,13 +730,20 @@ def main() -> None:
     parser.add_argument("--output-dir", type=Path, default=Path("data/sft/v1-seed-anchor-demo"))
     parser.add_argument("--multiplier", type=int, default=1)
     parser.add_argument("--held-out-ratio", type=float, default=0.2)
+    parser.add_argument("--split-strategy", choices=["row_tail", "group"], default="row_tail")
     args = parser.parse_args()
     if args.multiplier < 1:
         raise SystemExit("--multiplier must be >= 1")
     if not 0 < args.held_out_ratio < 1:
         raise SystemExit("--held-out-ratio must be between 0 and 1")
     samples = generate_samples(multiplier=args.multiplier)
-    write_outputs(samples, args.output_dir, multiplier=args.multiplier, held_out_ratio=args.held_out_ratio)
+    write_outputs(
+        samples,
+        args.output_dir,
+        multiplier=args.multiplier,
+        held_out_ratio=args.held_out_ratio,
+        split_strategy=args.split_strategy,
+    )
 
 
 if __name__ == "__main__":

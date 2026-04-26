@@ -139,6 +139,7 @@ def main() -> None:
     parser.add_argument("--run-dir", type=Path, required=True)
     parser.add_argument("--max-samples", type=int, default=8)
     parser.add_argument("--max-tokens", type=int, default=256)
+    parser.add_argument("--base-only", action="store_true", help="Probe the base checkpoint without loading a LoRA adapter.")
     args = parser.parse_args()
 
     if args.model_name.startswith("google/gemma-4"):
@@ -147,8 +148,20 @@ def main() -> None:
             "Use `mlx-community/gemma-4-e2b-it-4bit`."
         )
 
-    manifest = json.loads((args.run_dir / "run-manifest.json").read_text(encoding="utf-8"))
-    model, tokenizer = load(args.model_name, adapter_path=str(args.run_dir / "adapters"))
+    args.run_dir.mkdir(parents=True, exist_ok=True)
+    manifest_path = args.run_dir / "run-manifest.json"
+    if manifest_path.exists():
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    else:
+        manifest = {
+            "run_id": args.run_dir.name,
+            "max_steps": 0,
+            "training_mode": "base-no-adapter",
+            "model_name": args.model_name,
+        }
+        manifest_path.write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    adapter_path = None if args.base_only else str(args.run_dir / "adapters")
+    model, tokenizer = load(args.model_name, adapter_path=adapter_path)
     rows = load_jsonl(args.dataset)[: args.max_samples]
 
     results: list[dict] = []
@@ -193,6 +206,10 @@ def main() -> None:
                 "risk": row.get("risk"),
                 "vehicle_state": row.get("vehicle_state"),
                 "expected_system_action": expected_system_action,
+                "template_id": row.get("template_id"),
+                "split_group": row.get("split_group"),
+                "eval_split": row.get("eval_split"),
+                "split_strategy": row.get("split_strategy"),
                 "loaded_tool_names": row["loaded_tool_names"],
                 "expected_tool_calls": expected_tool_calls,
                 "expected_names": expected_names,
@@ -230,7 +247,7 @@ def main() -> None:
         "",
         f"- run_id: {manifest['run_id']}",
         f"- max_steps: {manifest['max_steps']}",
-        f"- evaluation_mode: real-mlx-generate-best-effort",
+        f"- evaluation_mode: {'real-mlx-base-best-effort' if args.base_only else 'real-mlx-generate-best-effort'}",
         f"- probe_dataset_path: {args.dataset}",
         "- probe_dataset_role: test",
         f"- exact_name_match: {sum(1 for row in results if row['exact_name_match'])}/{len(results)}",
@@ -248,7 +265,7 @@ def main() -> None:
             {
                 "run_id": manifest["run_id"],
                 "probe_count": len(results),
-                "evaluation_mode": "real-mlx-generate-best-effort",
+                "evaluation_mode": "real-mlx-base-best-effort" if args.base_only else "real-mlx-generate-best-effort",
                 "probe_dataset_role": "test",
             },
             ensure_ascii=False,

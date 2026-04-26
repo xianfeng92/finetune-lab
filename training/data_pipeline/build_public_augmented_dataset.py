@@ -21,6 +21,10 @@ CANONICAL_SAMPLE_KEYS = {
     "messages",
     "meta",
     "sft_text",
+    "template_id",
+    "split_group",
+    "eval_split",
+    "split_strategy",
     "expected_system_action",
     "event",
 }
@@ -38,6 +42,8 @@ def write_jsonl(path: Path, rows: list[dict]) -> None:
 def sanitize_sample(sample: dict) -> dict:
     sanitized = {key: sample[key] for key in CANONICAL_SAMPLE_KEYS if key in sample}
     sanitized.setdefault("meta", {})
+    sanitized.setdefault("eval_split", "public_external")
+    sanitized.setdefault("split_strategy", "external")
     sanitized["meta"] = {
         "prompt_token_count": sanitized["meta"].get("prompt_token_count", 0),
         "generator_model": sanitized["meta"].get("generator_model", "unknown"),
@@ -104,6 +110,7 @@ def main() -> None:
         args.output_dir,
         base_multiplier,
         held_out_ratio,
+        "public_augmented_train_only",
         errors,
     )
     summary["augmentation"] = build_augmentation_summary(car_bench_rows, clarifyvc_rows)
