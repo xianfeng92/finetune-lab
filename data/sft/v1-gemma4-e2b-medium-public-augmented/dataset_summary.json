@@ -1,0 +1,107 @@
+{
+  "title": "SFT dataset summary",
+  "output_dir": "/Users/xforg/AI_SPACE/finetune-lab/data/sft/v1-gemma4-e2b-medium-public-augmented",
+  "multiplier": 5,
+  "held_out_ratio": 0.186,
+  "counts": {
+    "total": 539,
+    "train": 439,
+    "held_out": 100
+  },
+  "shape": {
+    "avg_loaded_tool_count": 2.16,
+    "avg_expected_tool_call_count": 1.2,
+    "multi_tool_sample_count": 158,
+    "event_driven_sample_count": 50
+  },
+  "categories": {
+    "single_domain_single_tool": {
+      "total": 172,
+      "train": 142,
+      "held_out": 30
+    },
+    "single_domain_multi_tool_chain": {
+      "total": 81,
+      "train": 66,
+      "held_out": 15
+    },
+    "cross_domain_multi_tool": {
+      "total": 77,
+      "train": 62,
+      "held_out": 15
+    },
+    "reroute_to_meta": {
+      "total": 50,
+      "train": 40,
+      "held_out": 10
+    },
+    "full_tool_fallback": {
+      "total": 50,
+      "train": 40,
+      "held_out": 10
+    },
+    "proactive_event_driven": {
+      "total": 50,
+      "train": 40,
+      "held_out": 10
+    },
+    "confirm_required_action": {
+      "total": 25,
+      "train": 20,
+      "held_out": 5
+    },
+    "reject_unsafe_action": {
+      "total": 25,
+      "train": 20,
+      "held_out": 5
+    }
+  },
+  "behaviors": {
+    "tool_call": 386,
+    "handoff": 50,
+    "clarify": 53,
+    "confirm": 25,
+    "reject": 25
+  },
+  "risks": {
+    "low": 219,
+    "medium": 162,
+    "high": 158
+  },
+  "expected_system_actions": {
+    "create_pending_confirmation": 25,
+    "refuse_execution": 25
+  },
+  "validation": {
+    "valid_count": 539,
+    "error_count": 0,
+    "errors": []
+  },
+  "augmentation": {
+    "public_sample_count": 39,
+    "public_source_counts": {
+      "car_bench": 30,
+      "clarifyvc": 9
+    },
+    "public_behavior_counts": {
+      "clarify": 3,
+      "tool_call": 36
+    },
+    "public_domain_counts": {
+      "hvac": 6,
+      "lighting": 10,
+      "media": 1,
+      "navigation": 18,
+      "seat": 4,
+      "window": 2
+    },
+    "public_category_counts": {
+      "clarifyvc_tier1_single_turn_structured_parsing": 5,
+      "clarifyvc_tier2_ambiguity_detection_and_clarification": 3,
+      "clarifyvc_tier3_multi_turn_dialogue_grounding": 1,
+      "cross_domain_multi_tool": 2,
+      "single_domain_multi_tool_chain": 6,
+      "single_domain_single_tool": 22
+    }
+  }
+}

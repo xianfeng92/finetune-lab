@@ -1,12 +1,12 @@
 ---
-name: v1-seed-anchor-demo
+name: v1-gemma4-e2b-medium-public-augmented
 version: v1
-generated_at: "2026-04-26T20:35:06+08:00"
-generator: synthetic-rule-based/demo
-total_samples: 100
+generated_at: "2026-04-26T20:35:28+08:00"
+generator: synthetic-car-bench/import-v1
+total_samples: 539
 splits:
-  train: 80
-  held-out: 20
+  train: 439
+  held-out: 100
 license: internal-research-only
 sensitivity: low
 pii_scanned: true
@@ -17,13 +17,13 @@ schema_ref: training/data_pipeline/types or web/src/types.ts
 
 ## 描述
 
-SFT 数据集 `v1-seed-anchor-demo`：合成的车控 tool-call 样本，用于 LoRA 微调教学，不可作为真实车机训练集。
+SFT 数据集 `v1-gemma4-e2b-medium-public-augmented`：合成的车控 tool-call 样本，用于 LoRA 微调教学，不可作为真实车机训练集。
 
 ## 来源 / Provenance
 
 - 生成器：training/data_pipeline/pipeline.py + schema_sampler + generator
 - 种子：seed-anchor schema v1（合成数据，不含真实用户对话）
-- 数据目录：/Users/xforg/AI_SPACE/finetune-lab/data/sft/v1-seed-anchor-demo
+- 数据目录：/Users/xforg/AI_SPACE/finetune-lab/data/sft/v1-gemma4-e2b-medium-public-augmented
 
 ## Schema
 

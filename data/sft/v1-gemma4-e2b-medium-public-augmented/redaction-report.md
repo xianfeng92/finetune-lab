@@ -1,8 +1,8 @@
 ---
-dataset: v1-seed-anchor-demo
-generated_at: "2026-04-26T20:35:06+08:00"
+dataset: v1-gemma4-e2b-medium-public-augmented
+generated_at: "2026-04-26T20:35:28+08:00"
 policy_version: 1.0
-records_scanned: 100
+records_scanned: 539
 records_redacted: 0
 match_counts:
   phone_cn: 0
@@ -45,17 +45,7 @@ spot_check_count: 10
 
 ## Spot-check（10 例）
 
-### `sft-v1-0082` — no PII match — included as zero-PII evidence sample
-
-- `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=_meta_reroute,window_set_open_percent
-vehicle_state:
-{"speed_kph": 48, "power_state": "driving"}
-event_context:
-{"id":…`
-- `messages[*].content`: `检测到事件：Rain sensor triggered.，我先帮你处理。`
-
-### `sft-v1-0015` — no PII match — included as zero-PII evidence sample
+### `sft-v1-0115` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
 loaded_tool_names=seat_set_heating
@@ -63,47 +53,55 @@ vehicle_state:
 {"speed_kph": 0, "power_state": "parked"}`
 - `messages[*].content`: `副驾座椅加热开2档`
 
-### `sft-v1-0004` — no PII match — included as zero-PII evidence sample
+### `sft-v1-0026` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=door_set_lock
+loaded_tool_names=window_set_open_percent
 vehicle_state:
-{"speed_kph": 0, "power_state": "parked"}`
-- `messages[*].content`: `把车门都锁上`
+{"speed_kph": 6, "power_state": "parked"}`
+- `messages[*].content`: `开点窗，前排留条缝`
 
-### `sft-v1-0095` — no PII match — included as zero-PII evidence sample
+### `sft-v1-0352` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=_meta_reroute,window_set_open_percent
+loaded_tool_names=door_set_lock,hvac_set_temperature,window_set_open_percent,seat_set_heating,_meta_reroute
 vehicle_state:
-{"speed_kph": 30, "power_state": "driving"}`
-- `messages[*].content`: `把所有车窗都打开`
+{"speed_kph":…`
+- `messages[*].content`: `把车里弄舒服一点`
 
-### `sft-v1-0036` — no PII match — included as zero-PII evidence sample
+### `sft-v1-0311` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=hvac_set_temperature,hvac_set_fan_speed
+loaded_tool_names=_meta_reroute,door_set_lock
 vehicle_state:
 {"speed_kph": 38, "power_state": "driving"}`
-- `messages[*].content`: `后排空调设到22度，风量开2档`
+- `messages[*].content`: `车里太冷了，想把空调调暖一点`
 
-### `sft-v1-0032` — no PII match — included as zero-PII evidence sample
+### `sft-v1-0274` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=hvac_set_temperature
+loaded_tool_names=_meta_reroute,hvac_set_temperature,window_set_open_percent
+vehicle_state:
+{"speed_kph": 0, "power_state": "parked"}`
+- `messages[*].content`: `冷死了，主驾调到24度，顺便把window也处理一下`
+
+### `sft-v1-0173` — no PII match — included as zero-PII evidence sample
+
+- `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
+loaded_tool_names=hvac_set_fan_speed
 vehicle_state:
 {"speed_kph": 38, "power_state": "driving"}`
 - `messages[*].content`: `副驾温度降到20度，风速调到4档`
 
-### `sft-v1-0029` — no PII match — included as zero-PII evidence sample
+### `sft-v1-0105` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=hvac_set_temperature
+loaded_tool_names=hvac_set_fan_speed
 vehicle_state:
 {"speed_kph": 38, "power_state": "driving"}`
 - `messages[*].content`: `冷死了，主驾调到24度`
 
-### `sft-v1-0018` — no PII match — included as zero-PII evidence sample
+### `sft-v1-0090` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
 loaded_tool_names=window_set_open_percent
@@ -111,23 +109,22 @@ vehicle_state:
 {"speed_kph": 6, "power_state": "parked"}`
 - `messages[*].content`: `开点窗，前排留条缝`
 
-### `sft-v1-0014` — no PII match — included as zero-PII evidence sample
+### `clarifyvc-tier2-hvac-intensity` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=window_set_open_percent
+clarifyvc_tier=tier2_ambiguity_detection_and_clarification
+loaded_tool_names=hvac_set_temperature
 vehicle_state:
-{"speed_kph": 6, "power_state": "parked"}`
-- `messages[*].content`: `开点窗，前排留条缝`
+{"speed_kph": 18, "powe…`
+- `messages[*].content`: `Make it a bit cooler.`
 
-### `sft-v1-0087` — no PII match — included as zero-PII evidence sample
+### `sft-v1-0033` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=seat_set_heating,_meta_reroute
+loaded_tool_names=hvac_set_fan_speed,hvac_set_temperature
 vehicle_state:
-{"speed_kph": 26, "power_state": "driving"}
-event_context:
-{"id": "evt-s…`
-- `messages[*].content`: `检测到事件：Seat surface is cold.，我先帮你处理。`
+{"speed_kph": 38, "power_state": "driving"}`
+- `messages[*].content`: `冷死了，主驾调到24度`
 
 ## 残留风险
 

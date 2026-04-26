@@ -1,71 +1,35 @@
 # CAR-Bench Import Summary
 
 - total_records: `129`
-- normalized_sample_count: `2`
+- normalized_sample_count: `30`
 
 ## Category Counts
 
-- `cross_domain_multi_tool`: `1`
-- `single_domain_multi_tool_chain`: `1`
+- `cross_domain_multi_tool`: `2`
+- `single_domain_multi_tool_chain`: `6`
+- `single_domain_single_tool`: `22`
 
 ## Risk Counts
 
-- `low`: `2`
+- `high`: `6`
+- `low`: `21`
+- `medium`: `3`
 
 ## Skip Reasons
 
+- `no_supported_actions`: `5`
 - `task_type:disambiguation_user`: `19`
 - `task_type:hallucination_missing_tool`: `33`
 - `task_type:hallucination_missing_tool_parameter`: `8`
 - `task_type:hallucination_missing_tool_response`: `7`
-- `unsupported_actions:calculate_charging_time_by_soc,call_phone_by_number,get_charging_specs_and_status,get_entries_from_calendar,get_routes_from_start_to_destination,search_poi_at_location,set_new_navigation`: `1`
-- `unsupported_actions:calculate_charging_time_by_soc,get_charging_specs_and_status,get_contact_id_by_contact_name,get_contact_information,get_distance_by_soc,get_location_id_by_location_name,get_routes_from_start_to_destination,search_poi_at_location,send_email`: `1`
-- `unsupported_actions:calculate_charging_time_by_soc,get_charging_specs_and_status,get_distance_by_soc,get_location_id_by_location_name,get_routes_from_start_to_destination,search_poi_at_location`: `1`
-- `unsupported_actions:calculate_charging_time_by_soc,get_charging_specs_and_status,get_location_id_by_location_name,get_routes_from_start_to_destination,search_poi_at_location,set_new_navigation`: `1`
-- `unsupported_actions:call_phone_by_number,get_charging_specs_and_status,get_current_navigation_state,get_location_id_by_location_name,get_routes_from_start_to_destination,navigation_replace_final_destination,search_poi_along_the_route`: `1`
-- `unsupported_actions:call_phone_by_number,get_current_navigation_state,search_poi_at_location`: `2`
-- `unsupported_actions:call_phone_by_number,get_location_id_by_location_name,search_poi_at_location`: `1`
-- `unsupported_actions:get_charging_specs_and_status,get_contact_id_by_contact_name,get_contact_information,get_location_id_by_location_name,get_routes_from_start_to_destination,search_poi_along_the_route,send_email`: `1`
-- `unsupported_actions:get_charging_specs_and_status,get_current_navigation_state,get_routes_from_start_to_destination,navigation_delete_waypoint,search_poi_along_the_route`: `1`
-- `unsupported_actions:get_charging_specs_and_status,get_location_id_by_location_name,get_routes_from_start_to_destination`: `1`
-- `unsupported_actions:get_climate_settings`: `1`
-- `unsupported_actions:get_climate_settings,get_vehicle_window_positions,set_air_circulation,set_air_conditioning`: `1`
-- `unsupported_actions:get_climate_settings,get_vehicle_window_positions,set_air_conditioning`: `1`
-- `unsupported_actions:get_climate_settings,get_vehicle_window_positions,set_air_conditioning,set_window_defrost`: `1`
-- `unsupported_actions:get_climate_settings,set_air_circulation,set_air_conditioning`: `2`
-- `unsupported_actions:get_climate_settings,set_air_conditioning,set_window_defrost`: `1`
-- `unsupported_actions:get_climate_settings,set_fan_airflow_direction`: `2`
-- `unsupported_actions:get_contact_id_by_contact_name,get_contact_information,send_email`: `1`
-- `unsupported_actions:get_current_navigation_state`: `1`
-- `unsupported_actions:get_current_navigation_state,get_location_id_by_location_name,get_routes_from_start_to_destination,navigation_replace_final_destination`: `1`
-- `unsupported_actions:get_current_navigation_state,get_location_id_by_location_name,navigation_replace_one_waypoint`: `1`
-- `unsupported_actions:get_current_navigation_state,get_routes_from_start_to_destination,navigation_delete_destination,navigation_delete_waypoint`: `1`
-- `unsupported_actions:get_current_navigation_state,get_routes_from_start_to_destination,navigation_delete_waypoint`: `1`
-- `unsupported_actions:get_current_navigation_state,navigation_delete_destination`: `1`
-- `unsupported_actions:get_distance_by_soc`: `1`
-- `unsupported_actions:get_entries_from_calendar`: `1`
-- `unsupported_actions:get_exterior_lights_status,get_weather,set_fog_lights`: `1`
-- `unsupported_actions:get_exterior_lights_status,get_weather,set_fog_lights,set_head_lights_high_beams`: `1`
-- `unsupported_actions:get_exterior_lights_status,get_weather,set_fog_lights,set_head_lights_low_beams`: `1`
-- `unsupported_actions:get_exterior_lights_status,set_head_lights_high_beams`: `1`
-- `unsupported_actions:get_location_id_by_location_name,get_routes_from_start_to_destination,navigation_add_one_waypoint,navigation_replace_one_waypoint,search_poi_at_location`: `1`
-- `unsupported_actions:get_location_id_by_location_name,get_routes_from_start_to_destination,navigation_replace_final_destination`: `1`
-- `unsupported_actions:get_location_id_by_location_name,get_routes_from_start_to_destination,navigation_replace_final_destination,search_poi_at_location`: `2`
-- `unsupported_actions:get_location_id_by_location_name,get_routes_from_start_to_destination,search_poi_at_location,set_new_navigation`: `1`
-- `unsupported_actions:get_location_id_by_location_name,get_routes_from_start_to_destination,set_new_navigation`: `2`
-- `unsupported_actions:get_routes_from_start_to_destination,get_weather,set_new_navigation`: `1`
-- `unsupported_actions:get_seat_heating_level,get_seats_occupancy,set_steering_wheel_heating`: `1`
-- `unsupported_actions:get_seat_heating_level,get_temperature_inside_car`: `1`
-- `unsupported_actions:get_sunroof_and_sunshade_position,open_close_sunshade`: `1`
-- `unsupported_actions:get_temperature_inside_car,set_air_conditioning`: `1`
-- `unsupported_actions:get_weather,open_close_sunroof,open_close_sunshade`: `2`
-- `unsupported_actions:navigation_delete_destination`: `1`
-- `unsupported_actions:navigation_replace_final_destination`: `1`
+- `unsupported_actions:call_phone_by_number`: `5`
+- `unsupported_actions:open_close_sunroof,open_close_sunshade`: `2`
+- `unsupported_actions:open_close_sunshade`: `1`
 - `unsupported_actions:open_close_trunk_door`: `1`
+- `unsupported_actions:send_email`: `3`
 - `unsupported_actions:set_air_circulation`: `1`
-- `unsupported_actions:set_air_circulation,set_air_conditioning`: `1`
-- `unsupported_actions:set_ambient_lights`: `2`
-- `unsupported_actions:set_fan_airflow_direction`: `1`
-- `unsupported_actions:set_head_lights_high_beams`: `1`
-- `unsupported_actions:set_head_lights_low_beams`: `2`
-- `unsupported_actions:set_steering_wheel_heating`: `2`
+- `unsupported_actions:set_air_circulation,set_air_conditioning`: `4`
+- `unsupported_actions:set_air_conditioning`: `2`
+- `unsupported_actions:set_air_conditioning,set_window_defrost`: `2`
+- `unsupported_actions:set_fan_airflow_direction`: `3`
+- `unsupported_actions:set_steering_wheel_heating`: `3`

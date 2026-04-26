@@ -12,7 +12,7 @@ from formatter import build_sft_text
 OPENREVIEW_FORUM_URL = "https://openreview.net/forum?id=afO3vnSNsS"
 OPENREVIEW_PDF_URL = "https://openreview.net/pdf?id=afO3vnSNsS"
 
-SUPPORTED_DOMAINS = {"hvac", "window", "seat"}
+SUPPORTED_DOMAINS = {"hvac", "window", "seat", "lighting", "navigation", "media"}
 WINDOW_POSITION_MAP = {
     "front-left": "front_left",
     "front-right": "front_right",
@@ -144,7 +144,12 @@ PROTOCOL_SEED_EXAMPLES = [
         "vehicle_state": {"speed_kph": 0, "power_state": "parked"},
         "risk": "low",
         "behavior": "tool_call",
-        "tool_calls": [],
+        "tool_calls": [
+            {
+                "name": "lighting_set_ambient",
+                "arguments": {"on": True, "color": "purple"},
+            }
+        ],
         "assistant_content": "",
         "paper_anchor": "Table 9 lighting example",
     },
@@ -159,7 +164,12 @@ PROTOCOL_SEED_EXAMPLES = [
         "vehicle_state": {"speed_kph": 0, "power_state": "parked"},
         "risk": "low",
         "behavior": "tool_call",
-        "tool_calls": [],
+        "tool_calls": [
+            {
+                "name": "navigation_set_destination",
+                "arguments": {"destination_query": "nearest station"},
+            }
+        ],
         "assistant_content": "",
         "paper_anchor": "Table 9 navigation example",
     },
@@ -174,7 +184,12 @@ PROTOCOL_SEED_EXAMPLES = [
         "vehicle_state": {"speed_kph": 0, "power_state": "parked"},
         "risk": "low",
         "behavior": "tool_call",
-        "tool_calls": [],
+        "tool_calls": [
+            {
+                "name": "media_play_content",
+                "arguments": {"query": "jazz playlist", "source": "playlist"},
+            }
+        ],
         "assistant_content": "",
         "paper_anchor": "Table 9 media example",
     },
@@ -200,6 +215,12 @@ def default_loaded_tool_names(domain: str) -> list[str]:
         return ["window_set_open_percent"]
     if domain == "seat":
         return ["seat_set_heating"]
+    if domain == "lighting":
+        return ["lighting_set_ambient"]
+    if domain == "navigation":
+        return ["navigation_set_destination"]
+    if domain == "media":
+        return ["media_play_content"]
     return []
 
 
@@ -217,7 +238,10 @@ def normalize_protocol_record(record: dict) -> tuple[dict | None, str | None]:
         return None, f"unsupported_domain:{record['domain']}"
 
     behavior = record["behavior"]
-    loaded_tool_names = default_loaded_tool_names(record["domain"])
+    if record.get("tool_calls"):
+        loaded_tool_names = list(dict.fromkeys(call["name"] for call in record["tool_calls"]))
+    else:
+        loaded_tool_names = default_loaded_tool_names(record["domain"])
     if not loaded_tool_names:
         return None, f"missing_loaded_tools:{record['domain']}"
 

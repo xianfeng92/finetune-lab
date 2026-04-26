@@ -1,6 +1,6 @@
 {
   "total_records": 9,
-  "normalized_sample_count": 6,
+  "normalized_sample_count": 9,
   "tier_counts": {
     "tier1_single_turn_structured_parsing": 5,
     "tier2_ambiguity_detection_and_clarification": 3,
@@ -18,27 +18,26 @@
     "clarify": 3,
     "tool_call": 6
   },
-  "skip_reason_counts": {
-    "unsupported_domain:lighting": 1,
-    "unsupported_domain:media": 1,
-    "unsupported_domain:navigation": 1
-  },
+  "skip_reason_counts": {},
   "normalized_category_counts": {
-    "clarifyvc_tier1_single_turn_structured_parsing": 2,
+    "clarifyvc_tier1_single_turn_structured_parsing": 5,
     "clarifyvc_tier2_ambiguity_detection_and_clarification": 3,
     "clarifyvc_tier3_multi_turn_dialogue_grounding": 1
   },
   "normalized_domain_counts": {
     "hvac": 3,
+    "lighting": 1,
+    "media": 1,
+    "navigation": 1,
     "seat": 1,
     "window": 2
   },
   "normalized_behavior_counts": {
     "clarify": 3,
-    "tool_call": 3
+    "tool_call": 6
   },
   "normalized_risk_counts": {
-    "low": 3,
+    "low": 6,
     "medium": 3
   }
 }

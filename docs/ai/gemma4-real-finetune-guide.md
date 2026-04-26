@@ -120,6 +120,16 @@ make real-finetune-data-medium
 
 - [real-finetune-dataset-pack-medium.json](/Users/xforg/AI_SPACE/finetune-lab/outputs/real/real-finetune-dataset-pack-medium.json)
 
+如果你想看“公开来源样本直接并进主训练集，会不会立刻提升 mixed-task 表现”，可以跑：
+
+```bash
+make data-medium-public-augmented
+make real-finetune-data-medium-public-augmented
+make real-medium-public-augmented-direct-compare
+```
+
+这条路径会把当前可映射的 `CAR-Bench + ClarifyVC` 样本并进 medium train split，形成一套 `439 train / 52 valid / 48 test` 的 public-augmented 版本，用来和原始 medium direct 做同口径比较。
+
 如果你要继续往上看 `1000 total` 这一档，可以直接用：
 
 ```bash

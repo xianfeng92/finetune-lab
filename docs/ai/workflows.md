@@ -149,6 +149,7 @@ make real-stage-curriculum
 make real-stage-curriculum-consolidation
 make real-small-direct-compare
 make real-medium-direct-compare
+make real-medium-public-augmented-direct-compare
 make real-large-direct-compare
 make real-medium-stage-curriculum-consolidation
 make real-large-stage-curriculum-consolidation
@@ -174,6 +175,7 @@ make real-stage-curriculum-replay
 - `outputs/gemma4-e2b-real-mlx-lora-stage-curriculum-consolidation/stage4-consolidation/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-small-direct/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-medium-direct/inference-probe-results.json`
+- `outputs/gemma4-e2b-real-mlx-lora-medium-public-augmented-direct/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-large-direct/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-medium-stage-curriculum-consolidation/stage4-consolidation/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-large-stage-curriculum-consolidation/stage4-consolidation/inference-probe-results.json`
@@ -192,10 +194,11 @@ make real-stage-curriculum-replay
 - `REAL_EPOCHS=3 make real-train-mac` 会按数据行数自动估算 iter 数，避免继续停留在 12-step 不到一轮的教学 smoke 配置
 - `real-probe-mac` 使用 best-effort 解析，不会伪装成“完全可靠的统一 benchmark”
 - `real-small-direct-compare` 和 `real-medium-direct-compare` 用来回答“同一 schema 下，直接 mixed 训练时扩数据会发生什么”
+- `real-medium-public-augmented-direct-compare` 用来回答“把当前可映射的 `CAR-Bench + ClarifyVC` 公开样本直接并进 medium train split，会不会立刻提升主线 mixed-task probe”
 - `real-large-direct-compare` 用来继续回答“把同一 schema 扩到 1000 total 后，direct mixed 还能不能继续收益”
 - `real-medium-stage-curriculum-consolidation` 用来回答“同一份 medium 数据，curriculum + consolidation 能不能比 direct mixed 更稳”
 - `real-large-stage-curriculum-consolidation` 用来回答“把同一份新版 schema 扩到 1000 total 后，curriculum + consolidation 能不能真正超过 current medium best”
-- `data-scale-compare-pack` 会把 small / medium / large 和 direct mixed / curriculum + consolidation 收成一份统一 compare 数据包
+- `data-scale-compare-pack` 会把 small / medium / large、public-augmented medium，以及 direct mixed / curriculum + consolidation 收成一份统一 compare 数据包
 - `real-single-tool-compare` 把上面两条收成一个标准入口，适合先回答“这颗模型能不能先学会最小单工具调用”
 - `real-stage-curriculum` 会显式按 `single_tool -> reroute/meta -> multi_tool` 续训 adapter，最后再回到 full mixed-task test set 上做统一 probe
 - `real-stage-curriculum-consolidation` 会在 pure curriculum 之后，再补一个短的 full-mixed consolidation stage，检查 repeated call / fallback miss 这类边界问题能不能被收回来

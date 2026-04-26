@@ -3,7 +3,7 @@
 - source_type: `paper_protocol_seed`
 - raw_dataset_availability: `public paper + protocol only; raw dataset mirror unavailable from current public endpoints`
 - total_records: `9`
-- normalized_sample_count: `6`
+- normalized_sample_count: `9`
 
 ## Raw Tier Counts
 
@@ -14,10 +14,7 @@
 ## Normalized Behavior Counts
 
 - `clarify`: `3`
-- `tool_call`: `3`
+- `tool_call`: `6`
 
 ## Skip Reasons
 
-- `unsupported_domain:lighting`: `1`
-- `unsupported_domain:media`: `1`
-- `unsupported_domain:navigation`: `1`

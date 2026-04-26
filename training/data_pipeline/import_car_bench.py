@@ -31,6 +31,9 @@ DOMAIN_RISK = {
     "seat": "low",
     "window": "medium",
     "door": "high",
+    "lighting": "medium",
+    "navigation": "low",
+    "media": "low",
 }
 
 RISK_LEVELS = {
@@ -53,6 +56,37 @@ SEAT_ZONE_MAP = {
 }
 
 DIRECT_TASK_TYPES = {"base", "disambiguation_internal"}
+READ_ONLY_HELPER_ACTIONS = {
+    "calculate_charging_time_by_soc",
+    "get_charging_specs_and_status",
+    "get_climate_settings",
+    "get_contact_id_by_contact_name",
+    "get_contact_information",
+    "get_current_navigation_state",
+    "get_distance_by_soc",
+    "get_entries_from_calendar",
+    "get_exterior_lights_status",
+    "get_location_id_by_location_name",
+    "get_routes_from_start_to_destination",
+    "get_seat_heating_level",
+    "get_seats_occupancy",
+    "get_sunroof_and_sunshade_position",
+    "get_temperature_inside_car",
+    "get_vehicle_window_positions",
+    "get_weather",
+    "search_poi_along_the_route",
+    "search_poi_at_location",
+}
+AMBIENT_COLOR_MAP = {
+    "PURPLE": "purple",
+    "BLUE": "blue",
+    "RED": "red",
+    "YELLOW": "yellow",
+    "WHITE": "white",
+    "BROWN": "brown",
+    "GREEN": "green",
+    "ORANGE": "orange",
+}
 
 
 def clamp_int(value: int, minimum: int, maximum: int) -> int:
@@ -186,6 +220,124 @@ def map_action(action: dict, context: dict) -> list[dict] | None:
             for position in positions
         ]
 
+    if name == "set_ambient_lights":
+        color = AMBIENT_COLOR_MAP.get(kwargs.get("lightcolor", ""))
+        if not color:
+            return None
+        return [
+            {
+                "name": "lighting_set_ambient",
+                "arguments": {
+                    "on": bool(kwargs.get("on", True)),
+                    "color": color,
+                },
+            }
+        ]
+
+    if name == "set_head_lights_low_beams":
+        return [
+            {
+                "name": "lighting_set_headlight_beam",
+                "arguments": {
+                    "beam": "low",
+                    "on": bool(kwargs.get("on", True)),
+                },
+            }
+        ]
+
+    if name == "set_head_lights_high_beams":
+        return [
+            {
+                "name": "lighting_set_headlight_beam",
+                "arguments": {
+                    "beam": "high",
+                    "on": bool(kwargs.get("on", True)),
+                },
+            }
+        ]
+
+    if name == "set_fog_lights":
+        return [
+            {
+                "name": "lighting_set_fog_lights",
+                "arguments": {
+                    "on": bool(kwargs.get("on", True)),
+                },
+            }
+        ]
+
+    if name == "set_new_navigation":
+        route_ids = kwargs.get("route_ids", [])
+        if not route_ids:
+            return None
+        return [
+            {
+                "name": "navigation_set_route",
+                "arguments": {
+                    "route_ids": route_ids,
+                },
+            }
+        ]
+
+    if name == "navigation_replace_final_destination":
+        return [
+            {
+                "name": "navigation_replace_final_destination",
+                "arguments": {
+                    "new_destination_id": kwargs["new_destination_id"],
+                    "route_id_leading_to_new_destination": kwargs["route_id_leading_to_new_destination"],
+                },
+            }
+        ]
+
+    if name == "navigation_delete_destination":
+        return [
+            {
+                "name": "navigation_delete_destination",
+                "arguments": {
+                    "destination_id_to_delete": kwargs["destination_id_to_delete"],
+                },
+            }
+        ]
+
+    if name == "navigation_delete_waypoint":
+        return [
+            {
+                "name": "navigation_delete_waypoint",
+                "arguments": {
+                    "waypoint_id_to_delete": kwargs["waypoint_id_to_delete"],
+                    "route_id_without_waypoint": kwargs["route_id_without_waypoint"],
+                },
+            }
+        ]
+
+    if name == "navigation_replace_one_waypoint":
+        return [
+            {
+                "name": "navigation_replace_waypoint",
+                "arguments": {
+                    "waypoint_id_to_replace": kwargs["waypoint_id_to_replace"],
+                    "new_waypoint_id": kwargs["new_waypoint_id"],
+                    "route_id_leading_to_new_waypoint": kwargs["route_id_leading_to_new_waypoint"],
+                    "route_id_leading_away_from_new_waypoint": kwargs["route_id_leading_away_from_new_waypoint"],
+                },
+            }
+        ]
+
+    if name == "navigation_add_one_waypoint":
+        return [
+            {
+                "name": "navigation_add_waypoint",
+                "arguments": {
+                    "waypoint_id_before_new_waypoint": kwargs["waypoint_id_before_new_waypoint"],
+                    "route_id_leading_to_new_waypoint": kwargs["route_id_leading_to_new_waypoint"],
+                    "route_id_leading_away_from_new_waypoint": kwargs["route_id_leading_away_from_new_waypoint"],
+                    "waypoint_id_to_add": kwargs["waypoint_id_to_add"],
+                    "waypoint_id_after_new_waypoint": kwargs["waypoint_id_after_new_waypoint"],
+                },
+            }
+        ]
+
     return None
 
 
@@ -200,6 +352,8 @@ def normalize_task_record(record: dict, source_config: str, source_split: str) -
     mapped_tool_calls: list[dict] = []
     unsupported_actions: list[str] = []
     for action in actions:
+        if action["name"] in READ_ONLY_HELPER_ACTIONS:
+            continue
         mapped = map_action(action, context)
         if not mapped:
             unsupported_actions.append(action["name"])
@@ -399,6 +553,10 @@ def main() -> None:
                     continue
                 normalized_samples.append(normalized_sample)
                 for action in normalized_sample["source_actions"]:
+                    if action["name"] in READ_ONLY_HELPER_ACTIONS:
+                        continue
+                    if map_action(action, normalized_sample["source_context_init_config"]) is None:
+                        continue
                     mapped_action_counts[action["name"]] += 1
 
     normalized_output_dir.mkdir(parents=True, exist_ok=True)

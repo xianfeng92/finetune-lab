@@ -26,6 +26,13 @@ def infer_data_scale(run_dir: Path) -> str:
     return "small"
 
 
+def infer_dataset_variant(run_dir: Path) -> tuple[str, str]:
+    text = str(run_dir)
+    if "public-augmented" in text:
+        return "public_augmented", "Public-augmented"
+    return "core", "Core"
+
+
 def infer_strategy(run_dir: Path) -> tuple[str, str]:
     text = str(run_dir)
     if "stage-curriculum-consolidation" in text:
@@ -85,10 +92,19 @@ def load_scenario(run_dir: Path, dataset_pack: dict) -> dict:
     rows = load_json(run_dir / "inference-probe-results.json")
     strategy_id, strategy_label = infer_strategy(run_dir)
     scale = infer_data_scale(run_dir)
+    dataset_variant, dataset_variant_label = infer_dataset_variant(run_dir)
+    if scale == "medium" and dataset_variant != "core":
+        scenario_id = f"{scale}-{dataset_variant}-{strategy_id}"
+        label = f"{scale.capitalize()} · {dataset_variant_label} · {strategy_label}"
+    else:
+        scenario_id = f"{scale}-{strategy_id}"
+        label = f"{scale.capitalize()} · {strategy_label}"
     return {
-        "scenario_id": f"{scale}-{strategy_id}",
-        "label": f"{scale.capitalize()} · {strategy_label}",
+        "scenario_id": scenario_id,
+        "label": label,
         "data_scale": scale,
+        "dataset_variant": dataset_variant,
+        "dataset_variant_label": dataset_variant_label,
         "strategy": strategy_id,
         "strategy_label": strategy_label,
         "run_dir": str(run_dir.resolve().relative_to(ROOT)),
@@ -145,6 +161,7 @@ def write_markdown(path: Path, pack: dict) -> None:
                 f"## {scenario['label']}",
                 "",
                 f"- train/valid/test: {counts['train']}/{counts['valid']}/{counts['test']}",
+                f"- dataset_variant: {scenario['dataset_variant_label']}",
                 f"- avg_loss: {scenario['avg_loss']}",
                 f"- exact_name_match: {metrics['exact_name_match']['hit']}/{metrics['exact_name_match']['total']}",
                 f"- structured_output_valid: {metrics['structured_output_valid']['hit']}/{metrics['structured_output_valid']['total']}",
@@ -161,6 +178,7 @@ def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--small-pack", type=Path, required=True)
     parser.add_argument("--medium-pack", type=Path, required=True)
+    parser.add_argument("--medium-public-augmented-pack", type=Path)
     parser.add_argument("--large-pack", type=Path)
     parser.add_argument("--run-dir", type=Path, action="append", default=[])
     parser.add_argument("--output-dir", type=Path, required=True)
@@ -168,6 +186,7 @@ def main() -> None:
 
     small_pack = load_json(args.small_pack)
     medium_pack = load_json(args.medium_pack)
+    medium_public_augmented_pack = load_json(args.medium_public_augmented_pack) if args.medium_public_augmented_pack else medium_pack
     large_pack = load_json(args.large_pack) if args.large_pack else None
     scenarios = []
     for run_dir in args.run_dir:
@@ -175,11 +194,12 @@ def main() -> None:
         if scale == "large":
             dataset_pack = large_pack or medium_pack
         elif scale == "medium":
-            dataset_pack = medium_pack
+            dataset_variant, _ = infer_dataset_variant(run_dir)
+            dataset_pack = medium_public_augmented_pack if dataset_variant == "public_augmented" else medium_pack
         else:
             dataset_pack = small_pack
         scenarios.append(load_scenario(run_dir, dataset_pack))
-    scenarios.sort(key=lambda item: (item["data_scale"], item["strategy"]))
+    scenarios.sort(key=lambda item: (item["data_scale"], item["dataset_variant"], item["strategy"]))
 
     pack = {
         "generated_at": iso_now(),
@@ -188,6 +208,7 @@ def main() -> None:
         "teaching_notes": [
             "公平比较数据量时，要先确保 small / medium / large 走的是同一份 schema，而不是一边带 confirm/reject、一边还是老版 tool-call-only。",
             "direct mixed 用来回答'更多数据直接硬训会怎样'，curriculum + consolidation 用来回答'更多数据配合阶段化教学能不能更稳'。",
+            "public-augmented 场景回答的是'把公开来源样本直接并进主训练集，会不会立刻带来 mixed-task 提升'。如果 held-out 不变而指标没有提升，说明外部样本还没有和当前任务契合到足以形成直接收益。",
             "如果数据量变大后 exact/args 提升，但 structured/behavior 没跟上，说明问题不只是样本量，而是 task mixture、行为标签和课程设计。",
         ],
     }

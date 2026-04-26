@@ -30,10 +30,30 @@ def test_normalize_protocol_record_preserves_multi_turn_history() -> None:
     assert sample["messages"][-1]["tool_calls"][0]["name"] == "hvac_set_temperature"
 
 
-def test_normalize_protocol_record_skips_unsupported_domain() -> None:
+def test_normalize_protocol_record_maps_lighting_domain() -> None:
     record = next(seed for seed in PROTOCOL_SEED_EXAMPLES if seed["id"] == "clarifyvc-tier1-lighting-direct")
 
     sample, skip_reason = normalize_protocol_record(record)
 
-    assert sample is None
-    assert skip_reason == "unsupported_domain:lighting"
+    assert skip_reason is None
+    assert sample is not None
+    assert sample["loaded_tool_names"] == ["lighting_set_ambient"]
+    assert sample["messages"][-1]["tool_calls"][0]["arguments"]["color"] == "purple"
+
+
+def test_normalize_protocol_record_maps_navigation_and_media_domains() -> None:
+    navigation_record = next(seed for seed in PROTOCOL_SEED_EXAMPLES if seed["id"] == "clarifyvc-tier1-navigation-direct")
+    media_record = next(seed for seed in PROTOCOL_SEED_EXAMPLES if seed["id"] == "clarifyvc-tier1-media-direct")
+
+    navigation_sample, navigation_skip_reason = normalize_protocol_record(navigation_record)
+    media_sample, media_skip_reason = normalize_protocol_record(media_record)
+
+    assert navigation_skip_reason is None
+    assert navigation_sample is not None
+    assert navigation_sample["loaded_tool_names"] == ["navigation_set_destination"]
+    assert navigation_sample["messages"][-1]["tool_calls"][0]["arguments"]["destination_query"] == "nearest station"
+
+    assert media_skip_reason is None
+    assert media_sample is not None
+    assert media_sample["loaded_tool_names"] == ["media_play_content"]
+    assert media_sample["messages"][-1]["tool_calls"][0]["arguments"]["query"] == "jazz playlist"

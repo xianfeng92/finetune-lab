@@ -74,6 +74,174 @@
         }
       }
     ],
+    "lighting": [
+      {
+        "name": "lighting_set_ambient",
+        "description": "Set ambient cabin lighting state and color.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["on", "color"],
+          "properties": {
+            "on": { "type": "boolean" },
+            "color": {
+              "type": "string",
+              "enum": ["purple", "blue", "red", "yellow", "white", "brown", "green", "orange"]
+            }
+          }
+        }
+      },
+      {
+        "name": "lighting_set_headlight_beam",
+        "description": "Set headlight beam state.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["beam", "on"],
+          "properties": {
+            "beam": { "type": "string", "enum": ["low", "high"] },
+            "on": { "type": "boolean" }
+          }
+        }
+      },
+      {
+        "name": "lighting_set_fog_lights",
+        "description": "Turn fog lights on or off.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["on"],
+          "properties": {
+            "on": { "type": "boolean" }
+          }
+        }
+      }
+    ],
+    "navigation": [
+      {
+        "name": "navigation_set_destination",
+        "description": "Start navigation using a natural-language destination query.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["destination_query"],
+          "properties": {
+            "destination_query": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      {
+        "name": "navigation_set_route",
+        "description": "Apply a precomputed route sequence to navigation.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["route_ids"],
+          "properties": {
+            "route_ids": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "minLength": 1 }
+            }
+          }
+        }
+      },
+      {
+        "name": "navigation_replace_final_destination",
+        "description": "Replace the current final destination in an active route.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["new_destination_id", "route_id_leading_to_new_destination"],
+          "properties": {
+            "new_destination_id": { "type": "string", "minLength": 1 },
+            "route_id_leading_to_new_destination": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      {
+        "name": "navigation_delete_destination",
+        "description": "Delete the current final destination from an active route.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["destination_id_to_delete"],
+          "properties": {
+            "destination_id_to_delete": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      {
+        "name": "navigation_delete_waypoint",
+        "description": "Delete a waypoint from an active route.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["waypoint_id_to_delete", "route_id_without_waypoint"],
+          "properties": {
+            "waypoint_id_to_delete": { "type": "string", "minLength": 1 },
+            "route_id_without_waypoint": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      {
+        "name": "navigation_replace_waypoint",
+        "description": "Replace one waypoint in an active route with another.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "waypoint_id_to_replace",
+            "new_waypoint_id",
+            "route_id_leading_to_new_waypoint",
+            "route_id_leading_away_from_new_waypoint"
+          ],
+          "properties": {
+            "waypoint_id_to_replace": { "type": "string", "minLength": 1 },
+            "new_waypoint_id": { "type": "string", "minLength": 1 },
+            "route_id_leading_to_new_waypoint": { "type": "string", "minLength": 1 },
+            "route_id_leading_away_from_new_waypoint": { "type": "string", "minLength": 1 }
+          }
+        }
+      },
+      {
+        "name": "navigation_add_waypoint",
+        "description": "Add a waypoint into an active route.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": [
+            "waypoint_id_before_new_waypoint",
+            "route_id_leading_to_new_waypoint",
+            "route_id_leading_away_from_new_waypoint",
+            "waypoint_id_to_add",
+            "waypoint_id_after_new_waypoint"
+          ],
+          "properties": {
+            "waypoint_id_before_new_waypoint": { "type": "string", "minLength": 1 },
+            "route_id_leading_to_new_waypoint": { "type": "string", "minLength": 1 },
+            "route_id_leading_away_from_new_waypoint": { "type": "string", "minLength": 1 },
+            "waypoint_id_to_add": { "type": "string", "minLength": 1 },
+            "waypoint_id_after_new_waypoint": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    ],
+    "media": [
+      {
+        "name": "media_play_content",
+        "description": "Play audio content from a natural-language query.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["query"],
+          "properties": {
+            "query": { "type": "string", "minLength": 1 },
+            "source": { "type": "string", "enum": ["playlist", "album", "artist", "radio", "generic"] }
+          }
+        }
+      }
+    ],
     "meta": [
       {
         "name": "_meta_reroute",
@@ -86,7 +254,7 @@
             "suggested_domains": {
               "type": "array",
               "minItems": 1,
-              "items": { "type": "string", "enum": ["hvac", "window", "seat", "door"] }
+              "items": { "type": "string", "enum": ["hvac", "window", "seat", "door", "lighting", "navigation", "media"] }
             },
             "reason": { "type": "string", "minLength": 1 }
           }
