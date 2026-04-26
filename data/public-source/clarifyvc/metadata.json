@@ -1,0 +1,10 @@
+{
+  "dataset": "clarifyvc",
+  "source_type": "paper_protocol_seed",
+  "forum_url": "https://openreview.net/forum?id=afO3vnSNsS",
+  "paper_pdf_url": "https://openreview.net/pdf?id=afO3vnSNsS",
+  "notes": [
+    "The OpenReview paper advertises code+dataset availability at anonymous.4open.science/r/ClarifyVC.",
+    "Current public requests to anonymous.4open.science return HTTP 403 from this environment, so this importer mirrors the paper artifacts and builds a minimal protocol-seed preview instead of a raw dataset clone."
+  ]
+}

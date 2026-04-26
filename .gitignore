@@ -1,0 +1,13 @@
+.DS_Store
+.claude/
+.venv*/
+outputs/
+web/node_modules/
+web/dist/
+web/public/lab-data.json
+web/src/generated/
+web/*.tsbuildinfo
+web/vite.config.js
+web/vite.config.d.ts
+__pycache__/
+.pytest_cache/

@@ -1,0 +1,103 @@
+{
+  "version": "v1-demo",
+  "domains": {
+    "hvac": [
+      {
+        "name": "hvac_set_temperature",
+        "description": "Set HVAC target temperature.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["zone", "celsius"],
+          "properties": {
+            "zone": { "type": "string", "enum": ["driver", "passenger", "rear"] },
+            "celsius": { "type": "number", "minimum": 16, "maximum": 30 }
+          }
+        }
+      },
+      {
+        "name": "hvac_set_fan_speed",
+        "description": "Set fan speed level.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["zone", "level"],
+          "properties": {
+            "zone": { "type": "string", "enum": ["driver", "passenger", "rear"] },
+            "level": { "type": "integer", "minimum": 1, "maximum": 7 }
+          }
+        }
+      }
+    ],
+    "window": [
+      {
+        "name": "window_set_open_percent",
+        "description": "Set a window open percentage.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["position", "percent"],
+          "properties": {
+            "position": { "type": "string", "enum": ["front_left", "front_right", "rear_left", "rear_right", "all"] },
+            "percent": { "type": "integer", "minimum": 0, "maximum": 100 }
+          }
+        }
+      }
+    ],
+    "seat": [
+      {
+        "name": "seat_set_heating",
+        "description": "Set seat heating level.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["position", "level"],
+          "properties": {
+            "position": { "type": "string", "enum": ["driver", "passenger", "rear_left", "rear_right"] },
+            "level": { "type": "integer", "minimum": 0, "maximum": 3 }
+          }
+        }
+      }
+    ],
+    "door": [
+      {
+        "name": "door_set_lock",
+        "description": "Lock or unlock door(s).",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["position", "locked"],
+          "properties": {
+            "position": { "type": "string", "enum": ["front_left", "front_right", "rear_left", "rear_right", "all"] },
+            "locked": { "type": "boolean" }
+          }
+        }
+      }
+    ],
+    "meta": [
+      {
+        "name": "_meta_reroute",
+        "description": "Suggest different domain(s) when loaded tools do not fit the user intent.",
+        "parameters": {
+          "type": "object",
+          "additionalProperties": false,
+          "required": ["suggested_domains", "reason"],
+          "properties": {
+            "suggested_domains": {
+              "type": "array",
+              "minItems": 1,
+              "items": { "type": "string", "enum": ["hvac", "window", "seat", "door"] }
+            },
+            "reason": { "type": "string", "minLength": 1 }
+          }
+        }
+      }
+    ]
+  },
+  "events": [
+    { "id": "evt-cabin-cold", "domain": "hvac", "signal": "cabin_temperature_low", "description": "Cabin feels cold." },
+    { "id": "evt-window-rain", "domain": "window", "signal": "rain_detected", "description": "Rain sensor triggered." },
+    { "id": "evt-seat-cold", "domain": "seat", "signal": "seat_surface_cold", "description": "Seat surface is cold." },
+    { "id": "evt-door-open", "domain": "door", "signal": "door_left_open", "description": "Driver door still open." }
+  ]
+}

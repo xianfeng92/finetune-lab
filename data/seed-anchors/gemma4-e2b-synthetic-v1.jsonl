@@ -1,0 +1,4 @@
+{"id":"anchor-0001","category":"single_domain_single_tool","prompt":"有点冷，主驾调到24度","tool_call":{"name":"hvac_set_temperature","arguments":{"zone":"driver","celsius":24}}}
+{"id":"anchor-0002","category":"single_domain_single_tool","prompt":"前排窗留条缝","tool_call":{"name":"window_set_open_percent","arguments":{"position":"all","percent":15}}}
+{"id":"anchor-0003","category":"single_domain_single_tool","prompt":"把副驾座椅加热开到2档","tool_call":{"name":"seat_set_heating","arguments":{"position":"passenger","level":2}}}
+{"id":"anchor-0004","category":"single_domain_single_tool","prompt":"把车门都锁上","tool_call":{"name":"door_set_lock","arguments":{"position":"all","locked":true}}}

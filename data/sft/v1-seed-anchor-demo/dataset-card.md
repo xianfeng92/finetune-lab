@@ -1,0 +1,41 @@
+---
+name: v1-seed-anchor-demo
+version: v1
+generated_at: "2026-04-26T16:42:16+08:00"
+generator: synthetic-rule-based/demo
+total_samples: 100
+splits:
+  train: 80
+  held-out: 20
+license: internal-research-only
+sensitivity: low
+pii_scanned: true
+pii_redacted_count: 0
+policy_version_at_generation: 1.0
+schema_ref: training/data_pipeline/types or web/src/types.ts
+---
+
+## 描述
+
+SFT 数据集 `v1-seed-anchor-demo`：合成的车控 tool-call 样本，覆盖 single-tool / multi-tool-chain / cross-domain-multi-tool / reroute_to_meta / fallback / proactive 等任务结构。用于 LoRA 微调教学，不可作为真实车机训练集。
+
+## 来源 / Provenance
+
+- 生成器：training/data_pipeline/pipeline.py + schema_sampler + generator
+- 种子：seed-anchor schema v1（合成数据，不含真实用户对话）
+- 数据目录：data/sft/v1-seed-anchor-demo
+
+## Schema
+
+参见 `training/data_pipeline/types or web/src/types.ts`，本卡片不重复字段定义。
+
+## 已知限制
+
+- 合成数据无法覆盖真实方言、口语化、跨说法
+- 上线前必须用真实样本回归
+
+## 治理
+
+- 脱敏策略：见 [redaction-report.md](./redaction-report.md)
+- schema 校验：见 [validation_report.md](./validation_report.md)
+- 统计描述：见 [dataset_summary.md](./dataset_summary.md)

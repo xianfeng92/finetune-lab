@@ -1,0 +1,80 @@
+{
+  "title": "SFT dataset summary",
+  "output_dir": "/Users/xforg/AI_SPACE/finetune-lab/data/sft/v1-seed-anchor-demo",
+  "multiplier": 1,
+  "held_out_ratio": 0.2,
+  "counts": {
+    "total": 100,
+    "train": 80,
+    "held_out": 20
+  },
+  "shape": {
+    "avg_loaded_tool_count": 2.23,
+    "avg_expected_tool_call_count": 1.2,
+    "multi_tool_sample_count": 30,
+    "event_driven_sample_count": 10
+  },
+  "categories": {
+    "single_domain_single_tool": {
+      "total": 30,
+      "train": 24,
+      "held_out": 6
+    },
+    "single_domain_multi_tool_chain": {
+      "total": 15,
+      "train": 12,
+      "held_out": 3
+    },
+    "cross_domain_multi_tool": {
+      "total": 15,
+      "train": 12,
+      "held_out": 3
+    },
+    "reroute_to_meta": {
+      "total": 10,
+      "train": 8,
+      "held_out": 2
+    },
+    "full_tool_fallback": {
+      "total": 10,
+      "train": 8,
+      "held_out": 2
+    },
+    "proactive_event_driven": {
+      "total": 10,
+      "train": 8,
+      "held_out": 2
+    },
+    "confirm_required_action": {
+      "total": 5,
+      "train": 4,
+      "held_out": 1
+    },
+    "reject_unsafe_action": {
+      "total": 5,
+      "train": 4,
+      "held_out": 1
+    }
+  },
+  "behaviors": {
+    "tool_call": 70,
+    "handoff": 10,
+    "clarify": 10,
+    "confirm": 5,
+    "reject": 5
+  },
+  "risks": {
+    "low": 38,
+    "medium": 33,
+    "high": 29
+  },
+  "expected_system_actions": {
+    "create_pending_confirmation": 5,
+    "refuse_execution": 5
+  },
+  "validation": {
+    "valid_count": 100,
+    "error_count": 0,
+    "errors": []
+  }
+}

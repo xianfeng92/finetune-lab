@@ -1,0 +1,10 @@
+[project]
+name = "finetune-lab-data-pipeline"
+version = "0.1.0"
+requires-python = ">=3.9"
+dependencies = [
+  "jsonschema>=4.23"
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
