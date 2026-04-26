@@ -779,11 +779,12 @@ export async function loadLabData(): Promise<LabData> {
   if (window.location.protocol === "file:") {
     return embeddedLabData as unknown as LabData;
   }
-
   const dataUrl = new URL("lab-data.json", window.location.href).toString();
-  const response = await fetch(dataUrl, { cache: "no-store" });
-  if (!response.ok) {
-    throw new Error(`Failed to load lab-data.json: ${response.status}`);
+  try {
+    const response = await fetch(dataUrl, { cache: "no-store" });
+    if (response.ok) return (await response.json()) as LabData;
+  } catch {
+    // network error — fall through to the embedded snapshot
   }
-  return (await response.json()) as LabData;
+  return embeddedLabData as unknown as LabData;
 }
