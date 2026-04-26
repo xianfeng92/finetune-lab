@@ -9,7 +9,7 @@ import type {
   TrainingCurve,
 } from "../data-layer";
 import { Term } from "../components/Term";
-import { KpiCard, LossCurve, RunModeBadge, SectionTitle, formatRatio } from "../components/ui";
+import { KpiCard, LossCurve, RunModeBadge, SectionTitle, datasetScope, formatRatio } from "../components/ui";
 
 interface RunLiveIndex {
   generated_at: string;
@@ -227,6 +227,23 @@ function probeLabel(value: number, total: number) {
   return total ? formatRatio(value, total) : "pending";
 }
 
+function StatusBar(props: { status: RunLiveStatus["status"] | "static"; updatedAt: string | null }) {
+  const labels: Record<string, string> = {
+    starting: "starting",
+    running: "running · live",
+    completed: "completed",
+    failed: "failed",
+    static: "static snapshot",
+  };
+  return (
+    <div className={`obs-status-bar status-${props.status}`} role="status">
+      <span className="obs-status-dot" aria-hidden="true" />
+      <strong>{labels[props.status] ?? props.status}</strong>
+      {props.updatedAt ? <span className="obs-status-time">updated · {props.updatedAt}</span> : null}
+    </div>
+  );
+}
+
 function KeyMetricsPanel(props: { run: RunSummary; liveStatus: RunLiveStatus | null }) {
   const run = props.run;
   const live = props.liveStatus;
@@ -234,24 +251,22 @@ function KeyMetricsPanel(props: { run: RunSummary; liveStatus: RunLiveStatus | n
   const behaviorHits = rows.filter((row) => row.behavior_match).length;
   const lastTrainLoss = latestTrainLoss(run, live);
   const lastValLoss = live?.progress.last_val_loss ?? run.resourceSummary.last_val_loss;
-  const liveMemory = live?.resources.process_memory_gb;
   const peakMemory = live?.progress.last_peak_memory_gb ?? run.resourceSummary.peak_memory_gb;
   return (
-    <section className="panel span-2 observatory-key-panel">
+    <section className="panel span-2">
       <SectionTitle
         title="Key Metrics"
         subtitle={<>当前选中 run：<code>{run.manifest.run_id}</code>。训练时先盯这里，再往下看曲线、资源表和 case 级 probe。</>}
         audience="工程"
       />
+      <StatusBar status={live?.status ?? "static"} updatedAt={live?.updated_at ?? null} />
       <div className="kpi-grid observatory-key-grid">
-        <KpiCard label="status" value={statusLabel(live?.status ?? "static")} hint={live?.updated_at ?? "static snapshot"} accent />
         <KpiCard label="progress" value={progressLabel(run, live)} hint={`epoch ${live?.progress.current_epoch ?? run.runPlan?.effective_epochs ?? "—"}`} accent />
         <KpiCard label="train loss" value={formatMaybe(lastTrainLoss, 3)} hint="latest train loss" />
         <KpiCard label="val loss" value={formatMaybe(lastValLoss, 3)} hint="latest validation loss" />
-        <KpiCard label="exact" value={probeLabel(run.metrics.exactNameMatch, run.metrics.total)} hint="selected run probe" />
-        <KpiCard label="behavior" value={probeLabel(behaviorHits, rows.length)} hint="behavior-level probe" />
+        <KpiCard label="exact" value={probeLabel(run.metrics.exactNameMatch, run.metrics.total)} hint={run.metrics.total ? "selected run probe" : "no probe yet"} />
+        <KpiCard label="behavior" value={probeLabel(behaviorHits, rows.length)} hint={rows.length ? "behavior-level probe" : "no probe yet"} />
         <KpiCard label="peak mem" value={peakMemory !== null && peakMemory !== undefined ? `${peakMemory.toFixed(2)} GB` : "—"} hint="training peak memory" />
-        <KpiCard label="live mem" value={liveMemory !== null && liveMemory !== undefined ? `${liveMemory.toFixed(2)} GB` : "—"} hint="current process RSS" />
       </div>
     </section>
   );
@@ -327,6 +342,12 @@ function RunControlRoom(props: { run: RunSummary; liveStatus: RunLiveStatus | nu
   );
 }
 
+function bestRunScope(run: RunSummary | null): string {
+  if (!run) return "—";
+  const scope = datasetScope(run.manifest.dataset_path);
+  return `${run.manifest.title} · ${run.metrics.total} cases · scope ${scope}`;
+}
+
 function ObservatoryHero(props: { data: LabData; runs: RunSummary[]; liveStatus: RunLiveStatus | null }) {
   const liveLatest = props.liveStatus
     ? props.runs.find((run) => run.manifest.run_id === props.liveStatus?.run_id) ?? null
@@ -340,6 +361,8 @@ function ObservatoryHero(props: { data: LabData; runs: RunSummary[]; liveStatus:
   const bestBehavior = props.data.observatory?.best_behavior_run_id
     ? props.runs.find((run) => run.manifest.run_id === props.data.observatory?.best_behavior_run_id) ?? null
     : null;
+  const coverage = props.data.observatory?.telemetry_coverage;
+  const cpuMemLive = coverage?.live_cpu_usage_supported ?? false;
   return (
     <section className="panel span-2">
       <SectionTitle
@@ -347,13 +370,19 @@ function ObservatoryHero(props: { data: LabData; runs: RunSummary[]; liveStatus:
         subtitle={<>这不是另一个普通 <Term term="dashboard">dashboard</Term>。它把训练曲线、行为级 <Term term="probe">probe</Term>、资源摘要和运行配方放到一个视图里，帮助你解释“模型正在怎么学”。</>}
         audience="工程"
       />
-      <div className="kpi-grid kpi-grid-5 observatory-hero-grid">
+      <div className="kpi-grid observatory-hero-grid">
         <KpiCard label="latest real run" value={latest?.manifest.max_steps ? `${latest.manifest.max_steps} steps` : "—"} hint={latest?.manifest.title ?? "no real run"} accent />
-        <KpiCard label="best exact" value={bestExact ? `${Math.round(exactRate(bestExact) * 100)}%` : "—"} hint={bestExact?.manifest.title ?? "—"} />
-        <KpiCard label="best behavior" value={bestBehavior ? `${Math.round(behaviorRate(bestBehavior) * 100)}%` : "—"} hint={bestBehavior?.manifest.title ?? "—"} />
-        <KpiCard label="peak mem coverage" value={props.data.observatory ? `${props.data.observatory.telemetry_coverage.peak_memory_runs}/${props.data.observatory.telemetry_coverage.run_count}` : "—"} hint="有多少 real runs 已经记录了 peak_memory_gb" />
-        <KpiCard label="live cpu/gpu" value={props.data.observatory?.telemetry_coverage.live_cpu_usage_supported ? "cpu/mem live" : "planned"} hint="第二版已接半实时 CPU / memory；Apple GPU usage 仍保留为 planned" />
+        <KpiCard label="best exact" value={bestExact ? `${Math.round(exactRate(bestExact) * 100)}%` : "—"} hint={bestRunScope(bestExact)} />
+        <KpiCard label="best behavior" value={bestBehavior ? `${Math.round(behaviorRate(bestBehavior) * 100)}%` : "—"} hint={bestRunScope(bestBehavior)} />
       </div>
+      {coverage ? (
+        <div className="observatory-coverage-row" aria-label="telemetry coverage">
+          <span className="observatory-coverage-label">telemetry coverage</span>
+          <span className="observatory-coverage-chip">peak_memory · {coverage.peak_memory_runs}/{coverage.run_count} runs</span>
+          <span className={`observatory-coverage-chip ${cpuMemLive ? "live" : "planned"}`}>cpu / mem · {cpuMemLive ? "live" : "planned"}</span>
+          <span className="observatory-coverage-chip planned">apple gpu usage · planned</span>
+        </div>
+      ) : null}
     </section>
   );
 }
@@ -362,7 +391,7 @@ function ResourcePanel(props: { data: LabData; run: RunSummary; liveStatus: RunL
   const summary = props.run.resourceSummary;
   const live = props.liveStatus;
   return (
-    <section className="panel">
+    <section className="panel span-2">
       <SectionTitle title="Resources" subtitle="优先展示训练期间真实采到的 throughput / peak memory，再补主机静态信息。" audience="工程" />
       <div className="kpi-grid observatory-resource-grid">
         <KpiCard label="peak memory" value={summary.peak_memory_gb !== null ? `${summary.peak_memory_gb.toFixed(2)} GB` : "—"} hint="来自 train-metrics.jsonl 的 peak_memory_gb" accent />
@@ -407,13 +436,17 @@ function ProbeKpiPanel(props: { run: RunSummary }) {
         <KpiCard label="unsafe" value={formatRatio(unsafeCount, rows.length)} hint="不该直接调用工具的 case 里是否越界执行" />
       </div>
       <div className="observatory-contracts">
-        <article className="observatory-contract-card">
+        <article className={`observatory-contract-card ${confirmTotal === 0 ? "empty" : ""}`}>
           <strong>confirm contract</strong>
-          <p>{formatRatio(confirmHit, confirmTotal)}</p>
+          {confirmTotal === 0
+            ? <p className="observatory-contract-empty">这个 run 的 probe 集里没有 confirm 类型的 case</p>
+            : <p>{formatRatio(confirmHit, confirmTotal)}</p>}
         </article>
-        <article className="observatory-contract-card">
+        <article className={`observatory-contract-card ${rejectTotal === 0 ? "empty" : ""}`}>
           <strong>reject contract</strong>
-          <p>{formatRatio(rejectHit, rejectTotal)}</p>
+          {rejectTotal === 0
+            ? <p className="observatory-contract-empty">这个 run 的 probe 集里没有 reject 类型的 case</p>
+            : <p>{formatRatio(rejectHit, rejectTotal)}</p>}
         </article>
       </div>
     </section>
@@ -642,7 +675,6 @@ function TrainingObservatoryViewImpl(props: { data: LabData }) {
 
   return (
     <div className="view-grid">
-      <KeyMetricsPanel run={selectedRun} liveStatus={liveStatus} />
       <ObservatoryHero data={props.data} runs={realRuns} liveStatus={indexedLiveStatus} />
       <RunPicker
         runs={realRuns}
@@ -654,6 +686,7 @@ function TrainingObservatoryViewImpl(props: { data: LabData }) {
         }}
       />
       <RunControlRoom run={selectedRun} liveStatus={liveStatus} />
+      <KeyMetricsPanel run={selectedRun} liveStatus={liveStatus} />
       <TelemetryCharts trainTelemetry={mergedTrainTelemetry} evalTelemetry={mergedEvalTelemetry} />
       <ResourcePanel data={props.data} run={selectedRun} liveStatus={liveStatus} pollingDisabled={pollingDisabled} />
       <ProbeKpiPanel run={selectedRun} />
