@@ -9,6 +9,7 @@
 [![Live demo](https://img.shields.io/badge/Live%20demo-xianfeng92.github.io%2Ffinetune--lab-d4ff3a)](https://xianfeng92.github.io/finetune-lab/)
 [![Apple Silicon](https://img.shields.io/badge/Apple%20Silicon-MLX-black)](https://github.com/ml-explore/mlx)
 [![Agent friendly](https://img.shields.io/badge/AI--native-Claude%20%2F%20Codex-7c3aed)](#ai-native交给-codex--claude-接手)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](LICENSE)
 
 🌐 **在线 demo：** https://xianfeng92.github.io/finetune-lab/
 
@@ -216,4 +217,5 @@ finetune-lab/
 
 ## License
 
-License 待定。当前默认按"内部 / 教学使用"看待，外部分发前请等待 MIT 或 Apache 2.0 公告。
+[MIT](LICENSE) © 2026 xianfeng92。
+随便用、随便改、随便发，但请保留原 copyright 声明。
