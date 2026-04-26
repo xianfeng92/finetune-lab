@@ -67,6 +67,9 @@ REAL_TAIL_POLISH_EPOCHS ?= 1
 REAL_MEDIUM_STAGE_OUTPUT_ROOT ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-medium-stage-curriculum
 REAL_MEDIUM_CONSOLIDATION_OUTPUT_ROOT ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-medium-stage-curriculum-consolidation
 REAL_MEDIUM_CURRICULUM_ROOT ?= $(ROOT)/data/real-finetune/v1-gemma4-e2b-medium-stage-curriculum
+REAL_MEDIUM_PUBLIC_AUG_STAGE_OUTPUT_ROOT ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-medium-public-augmented-stage-curriculum
+REAL_MEDIUM_PUBLIC_AUG_CONSOLIDATION_OUTPUT_ROOT ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-medium-public-augmented-stage-curriculum-consolidation
+REAL_MEDIUM_PUBLIC_AUG_CURRICULUM_ROOT ?= $(ROOT)/data/real-finetune/v1-gemma4-e2b-medium-public-augmented-stage-curriculum
 REAL_LARGE_STAGE_OUTPUT_ROOT ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-large-stage-curriculum
 REAL_LARGE_CONSOLIDATION_OUTPUT_ROOT ?= $(ROOT)/outputs/gemma4-e2b-real-mlx-lora-large-stage-curriculum-consolidation
 REAL_LARGE_CURRICULUM_ROOT ?= $(ROOT)/data/real-finetune/v1-gemma4-e2b-large-stage-curriculum
@@ -79,7 +82,7 @@ REAL_MEDIUM_CROSS_DOMAIN_MICRO_REFRESH_EPOCHS ?= 0.25
 MODEL_NAME ?= demo/gemma-4-e2b-it
 REAL_MODEL_NAME ?= mlx-community/gemma-4-e2b-it-4bit
 
-.PHONY: help ai-onboarding ai-setup ai-lab bootstrap-data bootstrap-real-finetune data-demo data-medium data-medium-public-augmented data-large import-car-bench import-clarifyvc test-data env-probe smoke-train-mac probe-mac smoke-train-mac-100 probe-mac-100 compare-probes behavior-eval-pack level1-pack gemma-track-pack real-finetune-data real-finetune-data-medium real-finetune-data-medium-public-augmented real-finetune-data-large real-train-mac real-probe-mac real-mini-lab real-small-direct-compare real-medium-direct-compare real-medium-public-augmented-direct-compare real-large-direct-compare real-single-tool-compare real-stage-curriculum real-stage-curriculum-consolidation real-medium-stage-curriculum-consolidation real-large-stage-curriculum-consolidation real-stage-curriculum-replay real-tail-polish real-medium-cross-domain-focus-refresh data-scale-compare-pack level5-pack level6-demo dataset-governance web-install web-sync-data web-dev web-build
+.PHONY: help ai-onboarding ai-setup ai-lab bootstrap-data bootstrap-real-finetune data-demo data-medium data-medium-public-augmented data-large import-car-bench import-clarifyvc test-data env-probe smoke-train-mac probe-mac smoke-train-mac-100 probe-mac-100 compare-probes behavior-eval-pack level1-pack gemma-track-pack real-finetune-data real-finetune-data-medium real-finetune-data-medium-public-augmented real-finetune-data-large real-train-mac real-probe-mac real-mini-lab real-small-direct-compare real-medium-direct-compare real-medium-public-augmented-direct-compare real-large-direct-compare real-single-tool-compare real-stage-curriculum real-stage-curriculum-consolidation real-medium-stage-curriculum-consolidation real-medium-public-augmented-stage-curriculum-consolidation real-large-stage-curriculum-consolidation real-stage-curriculum-replay real-tail-polish real-medium-cross-domain-focus-refresh data-scale-compare-pack level5-pack level6-demo dataset-governance web-install web-sync-data web-dev web-build
 
 help:
 	@echo "Available targets:"
@@ -114,6 +117,7 @@ help:
 	@echo "  real-small-direct-compare Run a 1-epoch direct small-data LoRA compare baseline"
 	@echo "  real-medium-direct-compare Run a 1-epoch direct medium-data LoRA compare baseline"
 	@echo "  real-medium-public-augmented-direct-compare Run a 1-epoch direct public-augmented medium LoRA baseline"
+	@echo "  real-medium-public-augmented-stage-curriculum-consolidation Run the public-augmented medium staged curriculum and consolidation path"
 	@echo "  real-large-direct-compare Run a 1-epoch direct large-data LoRA compare baseline"
 	@echo "  real-single-tool-compare Run a 3-epoch single_domain_single_tool control experiment"
 	@echo "  real-stage-curriculum Run single_tool -> reroute/meta -> multi_tool staged curriculum"
@@ -289,6 +293,19 @@ real-medium-stage-curriculum-consolidation:
 	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(MEDIUM_REAL_FT_DATA_DIR) REAL_OUTPUT_DIR=$(REAL_MEDIUM_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation REAL_EPOCHS=$(REAL_CURRICULUM_CONSOLIDATION_EPOCHS) REAL_RESUME_ADAPTER_FILE=$(REAL_MEDIUM_STAGE_OUTPUT_ROOT)/stage3-multi-tool/adapters/adapters.safetensors REAL_PROBE_DATASET=$(MEDIUM_REAL_FT_DATA_DIR)/test.jsonl REAL_STEPS_PER_REPORT=20 REAL_STEPS_PER_EVAL=80 REAL_SAVE_EVERY=80
 	$(MAKE) -C $(ROOT) real-probe-mac REAL_OUTPUT_DIR=$(REAL_MEDIUM_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation REAL_PROBE_DATASET=$(MEDIUM_REAL_FT_DATA_DIR)/test.jsonl REAL_PROBE_MAX_SAMPLES=48
 
+real-medium-public-augmented-stage-curriculum-consolidation:
+	$(MAKE) -C $(ROOT) data-medium-public-augmented
+	cd $(ROOT) && $(PYTHON) training/finetune/build_real_finetune_dataset.py --train-dataset $(MEDIUM_PUBLIC_AUG_TRAIN_DATASET) --held-out-dataset $(MEDIUM_PUBLIC_AUG_HELD_OUT_DATASET) --output-dir $(REAL_MEDIUM_PUBLIC_AUG_CURRICULUM_ROOT)/stage1-single-tool --pack-output $(REAL_CURRICULUM_PACK_ROOT)/real-finetune-dataset-pack-medium-public-aug-stage1-single-tool.json --category-filter single_domain_single_tool
+	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(REAL_MEDIUM_PUBLIC_AUG_CURRICULUM_ROOT)/stage1-single-tool REAL_OUTPUT_DIR=$(REAL_MEDIUM_PUBLIC_AUG_STAGE_OUTPUT_ROOT)/stage1-single-tool REAL_EPOCHS=$(REAL_CURRICULUM_STAGE_EPOCHS) REAL_PROBE_DATASET=$(MEDIUM_PUBLIC_AUG_REAL_FT_DATA_DIR)/test.jsonl REAL_STEPS_PER_REPORT=20 REAL_STEPS_PER_EVAL=80 REAL_SAVE_EVERY=80
+	cd $(ROOT) && $(PYTHON) training/finetune/build_real_finetune_dataset.py --train-dataset $(MEDIUM_PUBLIC_AUG_TRAIN_DATASET) --held-out-dataset $(MEDIUM_PUBLIC_AUG_HELD_OUT_DATASET) --output-dir $(REAL_MEDIUM_PUBLIC_AUG_CURRICULUM_ROOT)/stage2-reroute-meta --pack-output $(REAL_CURRICULUM_PACK_ROOT)/real-finetune-dataset-pack-medium-public-aug-stage2-reroute-meta.json --category-filter reroute_to_meta,full_tool_fallback,confirm_required_action,reject_unsafe_action
+	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(REAL_MEDIUM_PUBLIC_AUG_CURRICULUM_ROOT)/stage2-reroute-meta REAL_OUTPUT_DIR=$(REAL_MEDIUM_PUBLIC_AUG_STAGE_OUTPUT_ROOT)/stage2-reroute-meta REAL_EPOCHS=$(REAL_CURRICULUM_STAGE_EPOCHS) REAL_RESUME_ADAPTER_FILE=$(REAL_MEDIUM_PUBLIC_AUG_STAGE_OUTPUT_ROOT)/stage1-single-tool/adapters/adapters.safetensors REAL_PROBE_DATASET=$(MEDIUM_PUBLIC_AUG_REAL_FT_DATA_DIR)/test.jsonl REAL_STEPS_PER_REPORT=20 REAL_STEPS_PER_EVAL=80 REAL_SAVE_EVERY=80
+	cd $(ROOT) && $(PYTHON) training/finetune/build_real_finetune_dataset.py --train-dataset $(MEDIUM_PUBLIC_AUG_TRAIN_DATASET) --held-out-dataset $(MEDIUM_PUBLIC_AUG_HELD_OUT_DATASET) --output-dir $(REAL_MEDIUM_PUBLIC_AUG_CURRICULUM_ROOT)/stage3-multi-tool --pack-output $(REAL_CURRICULUM_PACK_ROOT)/real-finetune-dataset-pack-medium-public-aug-stage3-multi-tool.json --category-filter single_domain_multi_tool_chain,cross_domain_multi_tool,proactive_event_driven
+	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(REAL_MEDIUM_PUBLIC_AUG_CURRICULUM_ROOT)/stage3-multi-tool REAL_OUTPUT_DIR=$(REAL_MEDIUM_PUBLIC_AUG_STAGE_OUTPUT_ROOT)/stage3-multi-tool REAL_EPOCHS=$(REAL_CURRICULUM_STAGE_EPOCHS) REAL_RESUME_ADAPTER_FILE=$(REAL_MEDIUM_PUBLIC_AUG_STAGE_OUTPUT_ROOT)/stage2-reroute-meta/adapters/adapters.safetensors REAL_PROBE_DATASET=$(MEDIUM_PUBLIC_AUG_REAL_FT_DATA_DIR)/test.jsonl REAL_STEPS_PER_REPORT=20 REAL_STEPS_PER_EVAL=80 REAL_SAVE_EVERY=80
+	$(MAKE) -C $(ROOT) real-probe-mac REAL_OUTPUT_DIR=$(REAL_MEDIUM_PUBLIC_AUG_STAGE_OUTPUT_ROOT)/stage3-multi-tool REAL_PROBE_DATASET=$(MEDIUM_PUBLIC_AUG_REAL_FT_DATA_DIR)/test.jsonl REAL_PROBE_MAX_SAMPLES=48
+	$(MAKE) -C $(ROOT) real-finetune-data-medium-public-augmented
+	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(MEDIUM_PUBLIC_AUG_REAL_FT_DATA_DIR) REAL_OUTPUT_DIR=$(REAL_MEDIUM_PUBLIC_AUG_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation REAL_EPOCHS=$(REAL_CURRICULUM_CONSOLIDATION_EPOCHS) REAL_RESUME_ADAPTER_FILE=$(REAL_MEDIUM_PUBLIC_AUG_STAGE_OUTPUT_ROOT)/stage3-multi-tool/adapters/adapters.safetensors REAL_PROBE_DATASET=$(MEDIUM_PUBLIC_AUG_REAL_FT_DATA_DIR)/test.jsonl REAL_STEPS_PER_REPORT=20 REAL_STEPS_PER_EVAL=80 REAL_SAVE_EVERY=80
+	$(MAKE) -C $(ROOT) real-probe-mac REAL_OUTPUT_DIR=$(REAL_MEDIUM_PUBLIC_AUG_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation REAL_PROBE_DATASET=$(MEDIUM_PUBLIC_AUG_REAL_FT_DATA_DIR)/test.jsonl REAL_PROBE_MAX_SAMPLES=48
+
 real-large-stage-curriculum-consolidation:
 	cd $(ROOT) && $(PYTHON) training/finetune/build_real_finetune_dataset.py --train-dataset $(LARGE_TRAIN_DATASET) --held-out-dataset $(LARGE_HELD_OUT_DATASET) --output-dir $(REAL_LARGE_CURRICULUM_ROOT)/stage1-single-tool --pack-output $(REAL_CURRICULUM_PACK_ROOT)/real-finetune-dataset-pack-large-stage1-single-tool.json --category-filter single_domain_single_tool
 	$(MAKE) -C $(ROOT) real-train-mac REAL_FT_DATA_DIR=$(REAL_LARGE_CURRICULUM_ROOT)/stage1-single-tool REAL_OUTPUT_DIR=$(REAL_LARGE_STAGE_OUTPUT_ROOT)/stage1-single-tool REAL_EPOCHS=$(REAL_CURRICULUM_STAGE_EPOCHS) REAL_PROBE_DATASET=$(LARGE_REAL_FT_DATA_DIR)/test.jsonl REAL_STEPS_PER_REPORT=20 REAL_STEPS_PER_EVAL=60 REAL_SAVE_EVERY=60
@@ -326,7 +343,7 @@ real-medium-cross-domain-focus-refresh:
 	$(MAKE) -C $(ROOT) real-probe-mac REAL_OUTPUT_DIR=$(REAL_MEDIUM_CROSS_DOMAIN_MICRO_REFRESH_OUTPUT_DIR) REAL_PROBE_DATASET=$(MEDIUM_REAL_FT_DATA_DIR)/test.jsonl
 
 data-scale-compare-pack:
-	cd $(ROOT) && $(PYTHON) training/finetune/build_data_scale_compare_pack.py --small-pack $(REAL_FT_PACK) --medium-pack $(MEDIUM_REAL_FT_PACK) --medium-public-augmented-pack $(MEDIUM_PUBLIC_AUG_REAL_FT_PACK) --large-pack $(LARGE_REAL_FT_PACK) --run-dir $(REAL_SMALL_DIRECT_OUTPUT_DIR) --run-dir $(REAL_CURRICULUM_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation --run-dir $(REAL_MEDIUM_DIRECT_OUTPUT_DIR) --run-dir $(REAL_MEDIUM_PUBLIC_AUG_DIRECT_OUTPUT_DIR) --run-dir $(REAL_MEDIUM_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation --run-dir $(REAL_LARGE_DIRECT_OUTPUT_DIR) --run-dir $(REAL_LARGE_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation --output-dir outputs/compare
+	cd $(ROOT) && $(PYTHON) training/finetune/build_data_scale_compare_pack.py --small-pack $(REAL_FT_PACK) --medium-pack $(MEDIUM_REAL_FT_PACK) --medium-public-augmented-pack $(MEDIUM_PUBLIC_AUG_REAL_FT_PACK) --large-pack $(LARGE_REAL_FT_PACK) --run-dir $(REAL_SMALL_DIRECT_OUTPUT_DIR) --run-dir $(REAL_CURRICULUM_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation --run-dir $(REAL_MEDIUM_DIRECT_OUTPUT_DIR) --run-dir $(REAL_MEDIUM_PUBLIC_AUG_DIRECT_OUTPUT_DIR) --run-dir $(REAL_MEDIUM_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation --run-dir $(REAL_MEDIUM_PUBLIC_AUG_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation --run-dir $(REAL_LARGE_DIRECT_OUTPUT_DIR) --run-dir $(REAL_LARGE_CONSOLIDATION_OUTPUT_ROOT)/stage4-consolidation --output-dir outputs/compare
 
 level5-pack:
 	cd $(ROOT) && $(PYTHON) training/finetune/build_level5_pack.py --dataset $(FULL_DATASET) --output-dir outputs/level5 --run-dir $(OUTPUT_DIR) --run-dir $(OUTPUT_DIR_100)

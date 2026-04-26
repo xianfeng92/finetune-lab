@@ -1,7 +1,7 @@
 ---
 name: v1-gemma4-e2b-medium-public-augmented
 version: v1
-generated_at: "2026-04-26T20:35:28+08:00"
+generated_at: "2026-04-26T20:45:08+08:00"
 generator: synthetic-car-bench/import-v1
 total_samples: 539
 splits:

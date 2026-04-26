@@ -30,6 +30,11 @@ function StarterGuide(props: { onPick: (view: View) => void }) {
         </button>
         <button type="button" className="starter-card" onClick={() => props.onPick("runs")}>
           <div className="starter-eyebrow">想看真训练能跑出什么</div>
+          <h3>跳到 Observatory</h3>
+          <p>看专业微调看板：train / val loss、throughput、peak memory、behavior KPI 都集中在一页。更适合直接理解“训练过程正在发生什么”。</p>
+        </button>
+        <button type="button" className="starter-card" onClick={() => props.onPick("runs")}>
+          <div className="starter-eyebrow">想盘所有 run 和产物</div>
           <h3>跳到 Training Runs</h3>
           <p>所有 <Term term="real run">real run</Term> 和 <Term term="simulated">simulated</Term> 占位的 loss 曲线、产物文件都在这里。SIM 是教学占位，REAL 是真跑。</p>
         </button>

@@ -5,10 +5,27 @@ import json
 import math
 import re
 import subprocess
+import sys
+import threading
+import time
 from pathlib import Path
 
-
 ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from training.finetune.live_status import (
+    build_initial_live_status,
+    live_status_slug,
+    now_iso,
+    sample_process_metrics,
+    sample_system_metrics,
+    tail_points,
+    write_live_index,
+    write_live_status,
+)
+
+
 MLX_COMPAT_DIR = ROOT / "training" / "finetune" / "mlx_compat"
 MLX_LORA_ENTRYPOINT = ROOT / "training" / "finetune" / "mlx_lora_entry.py"
 
@@ -92,6 +109,23 @@ def parse_metrics_from_log(log_path: Path) -> tuple[list[dict], list[dict]]:
     return train_metrics, eval_metrics
 
 
+def build_progress(train_metrics: list[dict], eval_metrics: list[dict], effective_epochs: float, train_row_count: int, batch_size: int) -> dict:
+    last_train = train_metrics[-1] if train_metrics else None
+    last_eval = eval_metrics[-1] if eval_metrics else None
+    current_step = last_train["step"] if last_train else (last_eval["step"] if last_eval else 0)
+    current_epoch = round((current_step * batch_size) / train_row_count, 3) if train_row_count else 0
+    return {
+        "current_step": current_step,
+        "current_epoch": current_epoch,
+        "target_epochs": effective_epochs,
+        "last_train_loss": last_train["loss"] if last_train else None,
+        "last_val_loss": last_eval["val_loss"] if last_eval else None,
+        "last_learning_rate": last_train["learning_rate"] if last_train else None,
+        "last_trained_tokens": last_train["trained_tokens"] if last_train else None,
+        "last_peak_memory_gb": last_train["peak_memory_gb"] if last_train else None,
+    }
+
+
 def build_manifest(args: argparse.Namespace, train_metrics: list[dict], eval_metrics: list[dict]) -> dict:
     avg_loss = round(sum(row["loss"] for row in train_metrics) / len(train_metrics), 4) if train_metrics else None
     return {
@@ -113,6 +147,8 @@ def build_manifest(args: argparse.Namespace, train_metrics: list[dict], eval_met
         "eval_metrics_path": rel(args.output_dir / "eval-metrics.jsonl"),
         "log_path": rel(args.output_dir / "mlx-lora.log"),
         "config_path": rel(args.output_dir / "run-plan.json"),
+        "live_status_path": rel(args.output_dir / "run-live-status.json"),
+        "public_live_status_path": f"run-live/{live_status_slug(args.output_dir)}",
         "workflow_note": "This run uses Apple MLX LoRA with real optimizer updates and model weights instead of synthetic smoke-train artifacts.",
     }
 
@@ -217,18 +253,114 @@ def main() -> None:
     (args.output_dir / "run-plan.json").write_text(json.dumps(run_plan, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
 
     log_path = args.output_dir / "mlx-lora.log"
+    train_metrics: list[dict] = []
+    eval_metrics: list[dict] = []
+    live_status = build_initial_live_status(
+        run_id=args.output_dir.name,
+        title=f"{args.iters}-iter real MLX LoRA run",
+        model_name=args.model_name,
+        dataset_path=rel(args.data_dir / "train.jsonl"),
+        output_dir=args.output_dir,
+        total_steps=args.iters,
+        effective_epochs=args.effective_epochs,
+        batch_size=args.batch_size,
+        learning_rate=args.learning_rate,
+        run_plan_path=args.output_dir / "run-plan.json",
+    )
+    state_lock = threading.Lock()
+    stop_event = threading.Event()
+
+    def flush_live_status() -> None:
+        with state_lock:
+            payload = json.loads(json.dumps(live_status))
+        write_live_status(args.output_dir, payload)
+        write_live_index(args.output_dir, payload)
+
+    def refresh_resources(pid: int) -> None:
+        process_metrics = sample_process_metrics(pid)
+        system_metrics = sample_system_metrics()
+        sample = {
+            "sampled_at": now_iso(),
+            **process_metrics,
+            **system_metrics,
+        }
+        with state_lock:
+            live_status["updated_at"] = sample["sampled_at"]
+            live_status["resources"].update(process_metrics)
+            live_status["resources"].update(system_metrics)
+            live_status["recent_resource_samples"] = tail_points(
+                live_status["recent_resource_samples"] + [sample],
+                keep=30,
+            )
+        flush_live_status()
+
+    def sampler(pid: int) -> None:
+        while not stop_event.is_set():
+            refresh_resources(pid)
+            if stop_event.wait(2.0):
+                break
+
+    flush_live_status()
+    returncode = 1
     with log_path.open("w", encoding="utf-8") as log_file:
-        process = subprocess.run(
+        process = subprocess.Popen(
             command,
             cwd=ROOT,
-            stdout=log_file,
+            stdout=subprocess.PIPE,
             stderr=subprocess.STDOUT,
             text=True,
+            bufsize=1,
         )
-    if process.returncode != 0:
-        raise SystemExit(process.returncode)
+        with state_lock:
+            live_status["status"] = "running"
+            live_status["updated_at"] = now_iso()
+        flush_live_status()
+        sampler_thread = threading.Thread(target=sampler, args=(process.pid,), daemon=True)
+        sampler_thread.start()
+        assert process.stdout is not None
+        for raw_line in process.stdout:
+            log_file.write(raw_line)
+            log_file.flush()
+            parsed = parse_metric_line(raw_line.strip())
+            if parsed is None:
+                continue
+            kind, payload = parsed
+            if kind == "train":
+                train_metrics.append(payload)
+            else:
+                eval_metrics.append(payload)
+            with state_lock:
+                live_status["progress"] = build_progress(
+                    train_metrics,
+                    eval_metrics,
+                    args.effective_epochs,
+                    args.train_row_count,
+                    args.batch_size,
+                )
+                if kind == "train":
+                    live_status["recent_train_points"] = tail_points(
+                        live_status["recent_train_points"] + [payload],
+                        keep=60,
+                    )
+                else:
+                    live_status["recent_eval_points"] = tail_points(
+                        live_status["recent_eval_points"] + [payload],
+                        keep=30,
+                    )
+                live_status["updated_at"] = now_iso()
+            flush_live_status()
+        returncode = process.wait()
+        stop_event.set()
+        sampler_thread.join(timeout=5)
+        refresh_resources(process.pid)
 
-    train_metrics, eval_metrics = parse_metrics_from_log(log_path)
+    if returncode != 0:
+        with state_lock:
+            live_status["status"] = "failed"
+            live_status["completed_at"] = now_iso()
+            live_status["updated_at"] = live_status["completed_at"]
+        flush_live_status()
+        raise SystemExit(returncode)
 
     (args.output_dir / "train-metrics.jsonl").write_text(
         "\n".join(json.dumps(row, ensure_ascii=False) for row in train_metrics) + ("\n" if train_metrics else ""),
@@ -241,6 +373,19 @@ def main() -> None:
 
     manifest = build_manifest(args, train_metrics, eval_metrics)
     (args.output_dir / "run-manifest.json").write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    with state_lock:
+        live_status["status"] = "completed"
+        live_status["completed_at"] = now_iso()
+        live_status["updated_at"] = live_status["completed_at"]
+        live_status["progress"] = build_progress(
+            train_metrics,
+            eval_metrics,
+            args.effective_epochs,
+            args.train_row_count,
+            args.batch_size,
+        )
+        live_status["manifest_path"] = rel(args.output_dir / "run-manifest.json")
+    flush_live_status()
     print(json.dumps(manifest, ensure_ascii=False, indent=2))
 
 

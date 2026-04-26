@@ -5,6 +5,7 @@ import { BeginnerGuideView } from "./views/BeginnerGuideView";
 import { OverviewView } from "./views/OverviewView";
 import { OnboardingView } from "./views/OnboardingView";
 import { DataView } from "./views/DataView";
+import { TrainingObservatoryView } from "./views/TrainingObservatoryView";
 import { TrainingRunsView } from "./views/TrainingRunsView";
 import { CompareView } from "./views/CompareView";
 
@@ -21,6 +22,7 @@ const NAV_ITEMS: Array<[View, string]> = [
   ["overview", "Overview"],
   ["onboarding", "Agent Handoff"],
   ["data", "Data Pipeline"],
+  ["observatory", "Observatory"],
   ["runs", "Training Runs"],
   ["compare", "Probe Compare"],
 ];
@@ -90,6 +92,7 @@ export default function App() {
         {view === "overview" ? <OverviewView data={labData} onPick={setView} /> : null}
         {view === "onboarding" ? <OnboardingView data={labData} /> : null}
         {view === "data" ? <DataView data={labData} /> : null}
+        {view === "observatory" ? <TrainingObservatoryView data={labData} /> : null}
         {view === "runs" ? <TrainingRunsView runs={labData.runs} /> : null}
         {view === "compare" ? <CompareView runs={labData.runs} heldOutDatasetPath={labData.source.held_out_dataset} /> : null}
       </main>

@@ -101,6 +101,11 @@ async function readJsonlIfExists(filePath, fallback) {
   }
 }
 
+function average(values) {
+  if (!values.length) return null;
+  return values.reduce((sum, value) => sum + value, 0) / values.length;
+}
+
 function countBy(items) {
   const map = new Map();
   for (const item of items) {
@@ -137,6 +142,88 @@ async function loadTrainingCurve(runDir) {
     last_loss: lastLoss,
     loss_delta_pct,
     points: sampled,
+  };
+}
+
+async function loadTrainTelemetry(runDir) {
+  const raw = await readJsonlIfExists(path.join(runDir, "train-metrics.jsonl"), []);
+  return raw
+    .filter((row) => typeof row?.step === "number" && typeof row?.loss === "number")
+    .map((row) => ({
+      step: row.step,
+      loss: row.loss,
+      learning_rate: typeof row.learning_rate === "number" ? row.learning_rate : null,
+      iterations_per_second: typeof row.iterations_per_second === "number" ? row.iterations_per_second : null,
+      tokens_per_second: typeof row.tokens_per_second === "number" ? row.tokens_per_second : null,
+      trained_tokens: typeof row.trained_tokens === "number" ? row.trained_tokens : null,
+      peak_memory_gb: typeof row.peak_memory_gb === "number" ? row.peak_memory_gb : null,
+    }));
+}
+
+async function loadEvalTelemetry(runDir) {
+  const raw = await readJsonlIfExists(path.join(runDir, "eval-metrics.jsonl"), []);
+  return raw
+    .filter((row) => typeof row?.step === "number" && typeof row?.val_loss === "number")
+    .map((row) => ({
+      step: row.step,
+      val_loss: row.val_loss,
+      val_time_s: typeof row.val_time_s === "number" ? row.val_time_s : null,
+    }));
+}
+
+async function loadRunPlan(runDir) {
+  const raw = await readJsonIfExists(path.join(runDir, "run-plan.json"), null);
+  if (!raw) return null;
+  return {
+    requested_epochs: typeof raw.requested_epochs === "number" ? raw.requested_epochs : null,
+    effective_epochs: typeof raw.effective_epochs === "number" ? raw.effective_epochs : null,
+    batch_size: typeof raw.batch_size === "number" ? raw.batch_size : null,
+    learning_rate: typeof raw.learning_rate === "number" ? raw.learning_rate : null,
+    steps_per_report: typeof raw.steps_per_report === "number" ? raw.steps_per_report : null,
+    steps_per_eval: typeof raw.steps_per_eval === "number" ? raw.steps_per_eval : null,
+    save_every: typeof raw.save_every === "number" ? raw.save_every : null,
+    max_seq_length: typeof raw.max_seq_length === "number" ? raw.max_seq_length : null,
+    num_layers: typeof raw.num_layers === "number" ? raw.num_layers : null,
+    compat_patch: raw.compat_patch ?? null,
+    resume_adapter_file: raw.resume_adapter_file ?? null,
+  };
+}
+
+async function loadLiveStatusSnapshot(runDir) {
+  return readJsonIfExists(path.join(runDir, "run-live-status.json"), null);
+}
+
+function buildResourceSummary(trainTelemetry, evalTelemetry, runPlan, machine, liveStatusSnapshot) {
+  const peakMemoryValues = trainTelemetry.map((row) => row.peak_memory_gb).filter((value) => typeof value === "number");
+  const iterPerSecValues = trainTelemetry.map((row) => row.iterations_per_second).filter((value) => typeof value === "number");
+  const tokenPerSecValues = trainTelemetry.map((row) => row.tokens_per_second).filter((value) => typeof value === "number");
+  const valLossValues = evalTelemetry.map((row) => row.val_loss).filter((value) => typeof value === "number");
+  const valTimeValues = evalTelemetry.map((row) => row.val_time_s).filter((value) => typeof value === "number");
+  const lastTrainPoint = trainTelemetry[trainTelemetry.length - 1] ?? null;
+  const lastEvalPoint = evalTelemetry[evalTelemetry.length - 1] ?? null;
+  const liveResources = liveStatusSnapshot?.resources ?? null;
+  return {
+    peak_memory_gb: peakMemoryValues.length ? Math.max(...peakMemoryValues) : null,
+    avg_iterations_per_second: average(iterPerSecValues),
+    avg_tokens_per_second: average(tokenPerSecValues),
+    last_trained_tokens: lastTrainPoint?.trained_tokens ?? null,
+    best_val_loss: valLossValues.length ? Math.min(...valLossValues) : null,
+    last_val_loss: lastEvalPoint?.val_loss ?? null,
+    avg_val_time_s: average(valTimeValues),
+    last_val_time_s: lastEvalPoint?.val_time_s ?? null,
+    host_platform: machine?.platform ?? null,
+    host_arch: machine?.machine ?? null,
+    live_cpu_usage_supported: liveResources?.cpu_live_supported ?? false,
+    live_gpu_usage_supported: liveResources?.gpu_live_supported ?? false,
+    live_memory_usage_supported: liveResources?.memory_live_supported ?? false,
+    run_plan: runPlan ? {
+      batch_size: runPlan.batch_size,
+      requested_epochs: runPlan.requested_epochs,
+      effective_epochs: runPlan.effective_epochs,
+      steps_per_report: runPlan.steps_per_report,
+      steps_per_eval: runPlan.steps_per_eval,
+      save_every: runPlan.save_every,
+    } : null,
   };
 }
 
@@ -216,15 +303,80 @@ async function getRuns() {
       // adapter dir may not exist for simulated runs
     }
     const trainingCurve = await loadTrainingCurve(runDir);
+    const trainTelemetry = await loadTrainTelemetry(runDir);
+    const evalTelemetry = await loadEvalTelemetry(runDir);
+    const runPlan = await loadRunPlan(runDir);
+    const liveStatusSnapshot = await loadLiveStatusSnapshot(runDir);
     runs.push({
       manifest,
       probeResults,
       metrics: buildProbeMetrics(probeResults),
       artifacts,
       trainingCurve,
+      trainTelemetry,
+      evalTelemetry,
+      runPlan,
+      resourceSummary: buildResourceSummary(trainTelemetry, evalTelemetry, runPlan, null, liveStatusSnapshot),
+      liveStatusPath: manifest.public_live_status_path ?? `run-live/${manifest.run_id}.json`,
+      liveStatusSnapshot,
     });
   }
   return runs.sort((a, b) => a.manifest.max_steps - b.manifest.max_steps);
+}
+
+function buildObservatory(runs, machine) {
+  const realRuns = runs.filter((run) => run.manifest.training_mode !== "simulated");
+  const topLevelRealRuns = realRuns.filter((run) => run.manifest.is_top_level);
+  const latestRealRun = [...topLevelRealRuns].sort((a, b) => {
+    const ta = a.manifest.completed_at ? Date.parse(a.manifest.completed_at) : 0;
+    const tb = b.manifest.completed_at ? Date.parse(b.manifest.completed_at) : 0;
+    return ta - tb;
+  }).at(-1) ?? topLevelRealRuns.at(-1) ?? realRuns.at(-1) ?? null;
+  const bestExactRun = realRuns.length
+    ? [...realRuns].sort((a, b) => {
+        const ra = a.metrics.total ? a.metrics.exactNameMatch / a.metrics.total : 0;
+        const rb = b.metrics.total ? b.metrics.exactNameMatch / b.metrics.total : 0;
+        if (rb !== ra) return rb - ra;
+        return b.metrics.total - a.metrics.total;
+      })[0]
+    : null;
+  const bestBehaviorRun = realRuns.length
+    ? [...realRuns].sort((a, b) => {
+        const aRows = a.probeResults;
+        const bRows = b.probeResults;
+        const ar = aRows.length ? aRows.filter((row) => row.behavior_match).length / aRows.length : 0;
+        const br = bRows.length ? bRows.filter((row) => row.behavior_match).length / bRows.length : 0;
+        if (br !== ar) return br - ar;
+        return bRows.length - aRows.length;
+      })[0]
+    : null;
+  return {
+    generated_at: new Date().toISOString(),
+    latest_real_run_id: latestRealRun?.manifest.run_id ?? null,
+    best_exact_run_id: bestExactRun?.manifest.run_id ?? null,
+    best_behavior_run_id: bestBehaviorRun?.manifest.run_id ?? null,
+    live_polling_supported: true,
+    telemetry_coverage: {
+      run_count: realRuns.length,
+      train_metric_runs: realRuns.filter((run) => run.trainTelemetry.length > 0).length,
+      eval_metric_runs: realRuns.filter((run) => run.evalTelemetry.length > 0).length,
+      peak_memory_runs: realRuns.filter((run) => run.resourceSummary.peak_memory_gb !== null).length,
+      live_cpu_usage_supported: realRuns.some((run) => run.resourceSummary.live_cpu_usage_supported),
+      live_gpu_usage_supported: realRuns.some((run) => run.resourceSummary.live_gpu_usage_supported),
+      live_memory_usage_supported: realRuns.some((run) => run.resourceSummary.live_memory_usage_supported),
+    },
+    host_machine: {
+      platform: machine?.platform ?? null,
+      machine: machine?.machine ?? null,
+      python: machine?.python ?? null,
+      node: machine?.node ?? null,
+    },
+    teaching_notes: [
+      "第二版 observatory 会在训练进行中轮询 run-live-status.json，把最新 step、loss、CPU 和 memory 采样叠加到静态 run 数据上。",
+      "真实训练日志已经能稳定提供 iterations/s、tokens/s 和 peak_memory_gb，这些足够支撑第一版专业看板。",
+      "当前 live sampler 已接入 process/system CPU+memory；Apple GPU usage 仍保留为 planned，并在资源面板显式标注。",
+    ],
+  };
 }
 
 function buildRunDelta(allRuns) {
@@ -345,6 +497,10 @@ async function main() {
     },
   );
   const runs = await getRuns();
+  for (const run of runs) {
+    run.resourceSummary = buildResourceSummary(run.trainTelemetry, run.evalTelemetry, run.runPlan, onboarding.machine, run.liveStatusSnapshot);
+  }
+  const observatory = buildObservatory(runs, onboarding.machine);
   let beginnerGuideMarkdown = null;
   try {
     beginnerGuideMarkdown = await fs.readFile(path.join(repoRoot, "docs", "ai", "beginner-guide.md"), "utf8");
@@ -380,6 +536,7 @@ async function main() {
       scale_up_rubric: level6ScaleUpRubric,
       scale_up_compare: level6ScaleUpCompare,
     },
+    observatory,
     source: {
       dataset: path.relative(repoRoot, datasetPath),
       train_dataset: path.relative(repoRoot, trainDatasetPath),

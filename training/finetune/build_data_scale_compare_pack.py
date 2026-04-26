@@ -17,6 +17,10 @@ def load_json(path: Path) -> dict | list:
     return json.loads(path.read_text(encoding="utf-8"))
 
 
+def scenario_ready(run_dir: Path) -> bool:
+    return (run_dir / "run-manifest.json").exists() and (run_dir / "inference-probe-results.json").exists()
+
+
 def infer_data_scale(run_dir: Path) -> str:
     text = str(run_dir)
     if "large" in text:
@@ -190,6 +194,8 @@ def main() -> None:
     large_pack = load_json(args.large_pack) if args.large_pack else None
     scenarios = []
     for run_dir in args.run_dir:
+        if not scenario_ready(run_dir):
+            continue
         scale = infer_data_scale(run_dir)
         if scale == "large":
             dataset_pack = large_pack or medium_pack

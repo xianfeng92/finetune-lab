@@ -12,12 +12,134 @@ export interface TrainingCurvePoint {
   loss: number;
 }
 
+export interface TrainTelemetryPoint {
+  step: number;
+  loss: number;
+  learning_rate: number | null;
+  iterations_per_second: number | null;
+  tokens_per_second: number | null;
+  trained_tokens: number | null;
+  peak_memory_gb: number | null;
+}
+
+export interface EvalTelemetryPoint {
+  step: number;
+  val_loss: number;
+  val_time_s: number | null;
+}
+
 export interface TrainingCurve {
   total_steps: number;
   first_loss: number | null;
   last_loss: number | null;
   loss_delta_pct: number | null;
   points: TrainingCurvePoint[];
+}
+
+export interface RunPlanSummary {
+  requested_epochs: number | null;
+  effective_epochs: number | null;
+  batch_size: number | null;
+  learning_rate: number | null;
+  steps_per_report: number | null;
+  steps_per_eval: number | null;
+  save_every: number | null;
+  max_seq_length: number | null;
+  num_layers: number | null;
+  compat_patch: string | null;
+  resume_adapter_file: string | null;
+}
+
+export interface RunResourceSummary {
+  peak_memory_gb: number | null;
+  avg_iterations_per_second: number | null;
+  avg_tokens_per_second: number | null;
+  last_trained_tokens: number | null;
+  best_val_loss: number | null;
+  last_val_loss: number | null;
+  avg_val_time_s: number | null;
+  last_val_time_s: number | null;
+  host_platform: string | null;
+  host_arch: string | null;
+  live_cpu_usage_supported: boolean;
+  live_gpu_usage_supported: boolean;
+  live_memory_usage_supported: boolean;
+  run_plan: {
+    batch_size: number | null;
+    requested_epochs: number | null;
+    effective_epochs: number | null;
+    steps_per_report: number | null;
+    steps_per_eval: number | null;
+    save_every: number | null;
+  } | null;
+}
+
+export interface LiveResourceSample {
+  sampled_at: string;
+  process_cpu_percent: number | null;
+  process_memory_gb: number | null;
+  process_threads: number | null;
+  system_memory_total_gb: number | null;
+  system_memory_used_gb: number | null;
+  system_memory_available_gb: number | null;
+  load_average_1m: number | null;
+  load_average_5m: number | null;
+  load_average_15m: number | null;
+  gpu_usage_percent: number | null;
+}
+
+export interface RunLiveStatus {
+  run_id: string;
+  title: string;
+  status: "starting" | "running" | "completed" | "failed";
+  phase: string;
+  started_at: string;
+  updated_at: string;
+  completed_at: string | null;
+  paths: {
+    output_dir: string;
+    local_status_path: string;
+    public_status_path: string;
+    run_plan_path: string;
+  };
+  plan: {
+    model_name: string;
+    dataset_path: string;
+    total_steps: number;
+    effective_epochs: number;
+    batch_size: number;
+    learning_rate: number;
+  };
+  progress: {
+    current_step: number;
+    current_epoch: number;
+    target_epochs: number;
+    last_train_loss: number | null;
+    last_val_loss: number | null;
+    last_learning_rate: number | null;
+    last_trained_tokens: number | null;
+    last_peak_memory_gb: number | null;
+  };
+  resources: {
+    process_cpu_percent: number | null;
+    process_memory_gb: number | null;
+    process_threads: number | null;
+    system_memory_total_gb: number | null;
+    system_memory_used_gb: number | null;
+    system_memory_available_gb: number | null;
+    load_average_1m: number | null;
+    load_average_5m: number | null;
+    load_average_15m: number | null;
+    gpu_usage_percent: number | null;
+    gpu_live_supported: boolean;
+    cpu_live_supported: boolean;
+    memory_live_supported: boolean;
+  };
+  recent_train_points: TrainTelemetryPoint[];
+  recent_eval_points: EvalTelemetryPoint[];
+  recent_resource_samples: LiveResourceSample[];
+  notes: string[];
+  manifest_path?: string;
 }
 
 export interface RunSummary {
@@ -34,6 +156,12 @@ export interface RunSummary {
   };
   artifacts: RunArtifact[];
   trainingCurve: TrainingCurve;
+  trainTelemetry: TrainTelemetryPoint[];
+  evalTelemetry: EvalTelemetryPoint[];
+  runPlan: RunPlanSummary | null;
+  resourceSummary: RunResourceSummary;
+  liveStatusPath: string;
+  liveStatusSnapshot: RunLiveStatus | null;
 }
 
 export interface AgentPrompt {
@@ -723,6 +851,30 @@ export interface DataScaleComparePack {
   teaching_notes: string[];
 }
 
+export interface TrainingObservatoryPack {
+  generated_at: string;
+  latest_real_run_id: string | null;
+  best_exact_run_id: string | null;
+  best_behavior_run_id: string | null;
+  live_polling_supported: boolean;
+  telemetry_coverage: {
+    run_count: number;
+    train_metric_runs: number;
+    eval_metric_runs: number;
+    peak_memory_runs: number;
+    live_cpu_usage_supported: boolean;
+    live_gpu_usage_supported: boolean;
+    live_memory_usage_supported: boolean;
+  };
+  host_machine: {
+    platform: string | null;
+    machine: string | null;
+    python: string | null;
+    node: string | null;
+  };
+  teaching_notes: string[];
+}
+
 export interface LabData {
   generated_at: string;
   project: {
@@ -749,6 +901,7 @@ export interface LabData {
   };
   behavior_eval_pack: BehaviorEvalPack | null;
   data_scale_compare_pack: DataScaleComparePack | null;
+  observatory: TrainingObservatoryPack | null;
   level6: {
     preference_dataset_pack: PreferenceDatasetPack | null;
     policy_compare_report: PolicyCompareReport | null;

@@ -130,6 +130,19 @@ make real-medium-public-augmented-direct-compare
 
 这条路径会把当前可映射的 `CAR-Bench + ClarifyVC` 样本并进 medium train split，形成一套 `439 train / 52 valid / 48 test` 的 public-augmented 版本，用来和原始 medium direct 做同口径比较。
 
+如果你想进一步回答“公开样本只有在课程化训练下才会不会真正形成收益”，可以继续跑：
+
+```bash
+make real-medium-public-augmented-stage-curriculum-consolidation
+```
+
+当前这条路径的结论是：
+
+- `public-augmented direct mixed`：`43/48 exact`，`46/48 structured`，`37/48 args`
+- `public-augmented curriculum + consolidation`：`48/48 exact`，`48/48 structured`，`45/48 args`，`48/48 behavior`
+
+也就是说，公开样本直接并进 train split 本身不会立刻带来 mixed-task 提升，但配合 `curriculum + consolidation` 后，会开始转化成更稳的主线收益。
+
 如果你要继续往上看 `1000 total` 这一档，可以直接用：
 
 ```bash

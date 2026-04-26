@@ -1,6 +1,6 @@
-export type View = "beginner-guide" | "onboarding" | "overview" | "data" | "runs" | "compare";
+export type View = "beginner-guide" | "onboarding" | "overview" | "data" | "observatory" | "runs" | "compare";
 
-export const ALL_VIEWS: View[] = ["beginner-guide", "onboarding", "overview", "data", "runs", "compare"];
+export const ALL_VIEWS: View[] = ["beginner-guide", "onboarding", "overview", "data", "observatory", "runs", "compare"];
 
 export type Audience = "新手" | "工程" | "进阶";
 

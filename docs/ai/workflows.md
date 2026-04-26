@@ -150,6 +150,7 @@ make real-stage-curriculum-consolidation
 make real-small-direct-compare
 make real-medium-direct-compare
 make real-medium-public-augmented-direct-compare
+make real-medium-public-augmented-stage-curriculum-consolidation
 make real-large-direct-compare
 make real-medium-stage-curriculum-consolidation
 make real-large-stage-curriculum-consolidation
@@ -164,6 +165,7 @@ make real-stage-curriculum-replay
 - `data/real-finetune/v1-gemma4-e2b-toolcall-demo/test.jsonl`
 - `outputs/real/real-finetune-dataset-pack.json`
 - `outputs/gemma4-e2b-real-mlx-lora-demo/run-manifest.json`
+- `outputs/gemma4-e2b-real-mlx-lora-demo/run-live-status.json`
 - `outputs/gemma4-e2b-real-mlx-lora-demo/inference-probe-results.json`
 - `outputs/real/real-finetune-dataset-pack-single-tool-control.json`
 - `outputs/gemma4-e2b-real-mlx-lora-single-tool-control/run-manifest.json`
@@ -176,8 +178,15 @@ make real-stage-curriculum-replay
 - `outputs/gemma4-e2b-real-mlx-lora-small-direct/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-medium-direct/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-medium-public-augmented-direct/inference-probe-results.json`
+- `outputs/gemma4-e2b-real-mlx-lora-medium-public-augmented-stage-curriculum-consolidation/stage4-consolidation/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-large-direct/inference-probe-results.json`
 - `outputs/gemma4-e2b-real-mlx-lora-medium-stage-curriculum-consolidation/stage4-consolidation/inference-probe-results.json`
+
+说明：
+
+- `real-train-mac` 现在会在训练过程中持续刷新 `run-live-status.json`
+- 这个 live status 会镜像到 `web/public/run-live/`
+- 如果你通过 HTTP 预览前端，Observatory 会按 2 秒轮询半实时展示 step / loss / CPU / memory
 - `outputs/gemma4-e2b-real-mlx-lora-large-stage-curriculum-consolidation/stage4-consolidation/inference-probe-results.json`
 - `outputs/compare/data-scale-compare-pack.json`
 - `outputs/real/real-finetune-dataset-pack-stage2-reroute-meta-replay.json`
@@ -195,10 +204,12 @@ make real-stage-curriculum-replay
 - `real-probe-mac` 使用 best-effort 解析，不会伪装成“完全可靠的统一 benchmark”
 - `real-small-direct-compare` 和 `real-medium-direct-compare` 用来回答“同一 schema 下，直接 mixed 训练时扩数据会发生什么”
 - `real-medium-public-augmented-direct-compare` 用来回答“把当前可映射的 `CAR-Bench + ClarifyVC` 公开样本直接并进 medium train split，会不会立刻提升主线 mixed-task probe”
+- `real-medium-public-augmented-stage-curriculum-consolidation` 用来回答“同一批公开样本在 curriculum + consolidation 路线里，会不会真正形成比 core medium 更强的 mixed-task 收益”
 - `real-large-direct-compare` 用来继续回答“把同一 schema 扩到 1000 total 后，direct mixed 还能不能继续收益”
 - `real-medium-stage-curriculum-consolidation` 用来回答“同一份 medium 数据，curriculum + consolidation 能不能比 direct mixed 更稳”
 - `real-large-stage-curriculum-consolidation` 用来回答“把同一份新版 schema 扩到 1000 total 后，curriculum + consolidation 能不能真正超过 current medium best”
 - `data-scale-compare-pack` 会把 small / medium / large、public-augmented medium，以及 direct mixed / curriculum + consolidation 收成一份统一 compare 数据包
+- 当前实测里，public-augmented medium 的 `direct mixed` 没有明显超过 core medium direct；但 `public-augmented curriculum + consolidation` 已经到 `48/48 exact`、`48/48 structured`、`45/48 args`、`48/48 behavior`
 - `real-single-tool-compare` 把上面两条收成一个标准入口，适合先回答“这颗模型能不能先学会最小单工具调用”
 - `real-stage-curriculum` 会显式按 `single_tool -> reroute/meta -> multi_tool` 续训 adapter，最后再回到 full mixed-task test set 上做统一 probe
 - `real-stage-curriculum-consolidation` 会在 pure curriculum 之后，再补一个短的 full-mixed consolidation stage，检查 repeated call / fallback miss 这类边界问题能不能被收回来

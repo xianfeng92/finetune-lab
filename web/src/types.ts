@@ -55,6 +55,8 @@ export interface ProbeResult {
   has_tool_calls_signal: boolean;
   looks_like_schema_echo: boolean;
   exact_name_match: boolean;
+  structured_output_valid: boolean;
+  arguments_match: boolean;
   predicted_names_all_loaded: boolean;
   prompt_style: string;
   predicted_behavior?: "answer_only" | "tool_call" | "clarify" | "confirm" | "reject" | "handoff";
@@ -78,6 +80,8 @@ export interface RunManifest {
   avg_loss: number;
   probe_results_path: string;
   probe_report_path: string;
+  live_status_path?: string;
+  public_live_status_path?: string;
   family?: string;
   is_top_level?: boolean;
   completed_at?: string | null;
