@@ -1,7 +1,7 @@
 {
-  "generated_at": "2026-04-26T13:23:45.026671Z",
-  "latest_run_id": "gemma4-e2b-real-mlx-lora-demo",
+  "generated_at": "2026-04-26T14:31:24.781624Z",
+  "latest_run_id": "stage4-consolidation",
   "status": "completed",
-  "updated_at": "2026-04-26T13:23:45.025706Z",
-  "run_path": "run-live/gemma4-e2b-real-mlx-lora-demo.json"
+  "updated_at": "2026-04-26T14:31:24.780678Z",
+  "run_path": "run-live/gemma4-e2b-real-mlx-lora-large-stage-curriculum-consolidation/stage4-consolidation.json"
 }
