@@ -2,9 +2,14 @@ from __future__ import annotations
 
 import argparse
 import json
+import sys
 from pathlib import Path
 
-from behavior_eval import (
+ROOT = Path(__file__).resolve().parents[2]
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
+
+from probe.behavior_eval import (
     classify_predicted_behavior,
     confirmation_contract_hit,
     refusal_contract_hit,

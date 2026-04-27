@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from training.finetune.behavior_eval import (
+from probe.behavior_eval import (
     classify_predicted_behavior,
     structured_output_valid,
 )

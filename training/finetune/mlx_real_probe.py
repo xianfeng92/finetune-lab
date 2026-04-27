@@ -12,12 +12,14 @@ MLX_COMPAT_DIR = ROOT / "training" / "finetune" / "mlx_compat"
 
 if str(MLX_COMPAT_DIR) not in sys.path:
     sys.path.insert(0, str(MLX_COMPAT_DIR))
+if str(ROOT) not in sys.path:
+    sys.path.insert(0, str(ROOT))
 
 import gemma4_e2b_compat  # noqa: F401
 
 from mlx_lm import generate, load
 from mlx_lm.generate import make_sampler
-from behavior_eval import (
+from probe.behavior_eval import (
     classify_predicted_behavior,
     confirmation_contract_hit,
     refusal_contract_hit,
