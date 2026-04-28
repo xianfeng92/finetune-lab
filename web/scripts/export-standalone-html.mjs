@@ -604,7 +604,7 @@ function renderDataBlock(data) {
 }
 
 function renderTrainingBlock(data) {
-  const runs = data.runs ?? [];
+  const runs = (data.runs ?? []).filter((run) => Number.isFinite(run.manifest?.avg_loss));
   if (!runs.length) return "";
   return `
     <section class="block" id="training">
@@ -658,7 +658,7 @@ function renderTrainingBlock(data) {
 }
 
 function renderCompareBlock(data) {
-  const runs = data.runs ?? [];
+  const runs = (data.runs ?? []).filter((run) => Number.isFinite(run.manifest?.avg_loss));
   if (runs.length < 2) return "";
   const delta = data.run_delta;
   const baseline = runs[0];

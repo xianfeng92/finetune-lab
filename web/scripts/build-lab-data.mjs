@@ -284,23 +284,29 @@ async function getRuns() {
     } catch {
       manifest.completed_at = null;
     }
-    const probeResultsPath = path.join(repoRoot, manifest.probe_results_path);
+    const probeResultsPath = manifest.probe_results_path
+      ? path.join(repoRoot, manifest.probe_results_path)
+      : path.join(runDir, "inference-probe-results.json");
     const probeResults = await readJsonIfExists(probeResultsPath, []);
-    const adapterDir = path.join(repoRoot, manifest.adapter_dir);
+    const adapterDir = manifest.adapter_dir
+      ? path.join(repoRoot, manifest.adapter_dir)
+      : null;
     const artifacts = [];
-    try {
-      for (const entry of await fs.readdir(adapterDir, { withFileTypes: true })) {
-        if (!entry.isFile()) continue;
-        const absolute = path.join(adapterDir, entry.name);
-        const stat = await fs.stat(absolute);
-        artifacts.push({
-          name: entry.name,
-          relative_path: path.relative(repoRoot, absolute),
-          size_bytes: stat.size,
-        });
+    if (adapterDir) {
+      try {
+        for (const entry of await fs.readdir(adapterDir, { withFileTypes: true })) {
+          if (!entry.isFile()) continue;
+          const absolute = path.join(adapterDir, entry.name);
+          const stat = await fs.stat(absolute);
+          artifacts.push({
+            name: entry.name,
+            relative_path: path.relative(repoRoot, absolute),
+            size_bytes: stat.size,
+          });
+        }
+      } catch {
+        // adapter dir may not exist for simulated or non-training runs
       }
-    } catch {
-      // adapter dir may not exist for simulated runs
     }
     const trainingCurve = await loadTrainingCurve(runDir);
     const trainTelemetry = await loadTrainTelemetry(runDir);

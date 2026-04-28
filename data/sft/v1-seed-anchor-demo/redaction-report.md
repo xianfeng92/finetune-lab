@@ -1,6 +1,6 @@
 ---
 dataset: v1-seed-anchor-demo
-generated_at: "2026-04-26T23:11:47+08:00"
+generated_at: "2026-04-28T20:50:12+08:00"
 policy_version: 1.0
 records_scanned: 100
 records_redacted: 0
@@ -72,14 +72,15 @@ vehicle_state:
 ### `sft-v1-0079` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=hvac_set_temperature,window_set_open_percent,seat_set_heating,door_set_lock,_meta_reroute,hvac_set_fan_speed
-vehicle_s…`
+loaded_tool_names=hvac_set_fan_speed,_meta_reroute,seat_set_heating,door_set_lock,window_set_open_percent
+vehicle_state:
+{"speed_kph": 0…`
 - `messages[*].content`: `把车里弄舒服一点`
 
 ### `sft-v1-0042` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=hvac_set_fan_speed
+loaded_tool_names=hvac_set_temperature
 vehicle_state:
 {"speed_kph": 38, "power_state": "driving"}`
 - `messages[*].content`: `后排空调设到22度，风量开2档`
@@ -87,7 +88,7 @@ vehicle_state:
 ### `sft-v1-0038` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=hvac_set_temperature,hvac_set_fan_speed
+loaded_tool_names=hvac_set_temperature
 vehicle_state:
 {"speed_kph": 38, "power_state": "driving"}`
 - `messages[*].content`: `副驾温度降到20度，风速调到4档`
@@ -119,7 +120,7 @@ vehicle_state:
 ### `sft-v1-0043` — no PII match — included as zero-PII evidence sample
 
 - `system_prompt`: `你是车机工具调用助手，只能从已加载工具中选择。
-loaded_tool_names=hvac_set_temperature,hvac_set_fan_speed
+loaded_tool_names=hvac_set_fan_speed,hvac_set_temperature
 vehicle_state:
 {"speed_kph": 0, "power_state": "parked"}`
 - `messages[*].content`: `主驾空调调到24度，风速开3档`

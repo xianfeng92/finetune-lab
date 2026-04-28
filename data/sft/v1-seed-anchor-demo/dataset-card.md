@@ -1,7 +1,7 @@
 ---
 name: v1-seed-anchor-demo
 version: v1
-generated_at: "2026-04-26T23:11:47+08:00"
+generated_at: "2026-04-28T20:50:12+08:00"
 generator: synthetic-rule-based/demo
 total_samples: 100
 splits:

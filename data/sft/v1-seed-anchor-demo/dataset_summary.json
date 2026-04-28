@@ -13,7 +13,7 @@
     "unique_user_prompt_count": 26,
     "unique_template_id_count": 26,
     "unique_split_group_count": 26,
-    "avg_loaded_tool_count": 2.28,
+    "avg_loaded_tool_count": 2.24,
     "avg_expected_tool_call_count": 1.2,
     "multi_tool_sample_count": 30,
     "event_driven_sample_count": 10
