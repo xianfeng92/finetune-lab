@@ -15,25 +15,28 @@
 - NDK: `27.2.12479018`
 - CMake: `3.22.1`
 - Java runtime: Android Studio JBR, `openjdk 21.0.10`
-- 已安装 AVD: `Pixel_Tablet`
+- 已安装 AVD: `Pixel_7_API_35_ARM64`, `Pixel_Tablet`
+- `Pixel_7_API_35_ARM64`: `pixel_7` device profile, `arm64-v8a`, `android-35`, `google_apis`, RAM `8192MB`, data partition `12G`
 - `Pixel_Tablet`: `arm64-v8a`, `android-35`, `google_apis_playstore_tablet`, RAM `8192MB`
+- 已安装 system image: `system-images/android-35/google_apis/arm64-v8a`
 - 已安装 system image: `system-images/android-35/google_apis_playstore_tablet/arm64-v8a`
 - Mac host tools: `llama-completion`, `litert-lm`
 
 缺口：
 
-- 当前 AVD 是 Pixel Tablet，不是 W3 计划里的 Pixel 7。
+- LiteRT-LM Android AAR base-only demo 还未接入。
 
-结论：你已经有一个可启动的 ARM64 Android emulator 基础，也已经具备 Java / NDK / CMake / command-line tools。它还不是 W3 的目标 Pixel 7 环境，但可以先作为 smoke-test fallback，用来验证 `adb -> push -> shell -> Android ARM64 binary` 这条链路；RAM 已经调到 `8192MB`，可以进入 Q4_K_M GGUF smoke 尝试。W3 的最终 benchmark 口径仍建议创建 Pixel 7 ARM64 AVD，或在所有报告里明确标注 `Pixel Tablet emulator`。
+结论：W3 的 Android SDK / Pixel 7 AVD / NDK / CMake / Java / llama.cpp Android ARM64 smoke 链路已经跑通。当前 Pixel 7 AVD 使用 Google APIs generic phone ARM64 system image；`hw.device.name` 是 `pixel_7`，但 Android guest 内的 `ro.product.model` 会显示为 `sdk_gphone64_arm64`，报告时需要同时标注 AVD profile 和 guest product。
 
 当前设备状态：
 
-- `adb devices -l`: `emulator-5554`, `model:Pixel_Tablet`, `device:emu64a`
-- `ro.product.model`: `Pixel Tablet`
+- `adb devices -l`: `emulator-5554`, `product:sdk_gphone64_arm64`, `model:sdk_gphone64_arm64`, `device:emu64a`
+- AVD profile: `Pixel_7_API_35_ARM64`, `hw.device.name=pixel_7`
+- `ro.product.model`: `sdk_gphone64_arm64`
 - `ro.product.cpu.abi`: `arm64-v8a`
 - `ro.build.version.sdk`: `35`
 - `/proc/meminfo` total: about `7.9GB`
-- `/data` after GGUF + llama.cpp binaries: about `926MB` free
+- `/data` after GGUF + llama.cpp binaries: about `7.4GB` free
 
 ## Can `Pixel_Tablet` Be Used?
 
@@ -77,7 +80,7 @@ edge-bench/deploy/android/check_env.sh
 - `adb` / `emulator` / `sdkmanager` / `avdmanager`
 - Java runtime
 - NDK / CMake / Ninja
-- AVD 列表和每个 AVD 的 `device / abi / target / ram / image`
+- AVD 列表和每个 AVD 的 `device / abi / target / ram / data / image`
 - adb devices
 - edge-bench 的 Q4_K_M GGUF 是否已经存在
 
@@ -134,7 +137,7 @@ export PATH="$JAVA_HOME/bin:$PATH"
 
 ## Create Pixel 7 AVD
 
-当前已有 `Pixel_Tablet`，但 W3 benchmark 需要 phone form factor，推荐创建 `Pixel_7_API_35_ARM64`。
+当前已创建 `Pixel_7_API_35_ARM64`。如果要在新机器上复现，按下面步骤创建。
 
 Android Studio GUI 路径：
 
@@ -158,12 +161,18 @@ avdmanager create avd \
   --device "pixel_7"
 ```
 
-把 RAM 调到 8GB：
+把 RAM 调到 8GB，并把 data partition 调大到至少 `12G`：
 
 ```bash
 AVD_CONFIG="$HOME/.android/avd/Pixel_7_API_35_ARM64.avd/config.ini"
 /usr/bin/sed -i '' 's/^hw.ramSize=.*/hw.ramSize=8192/' "$AVD_CONFIG"
+/usr/bin/sed -i '' 's/^disk.dataPartition.size=.*/disk.dataPartition.size=12G/' "$AVD_CONFIG"
+/usr/bin/sed -i '' 's/^avd.id=.*/avd.id=Pixel_7_API_35_ARM64/' "$AVD_CONFIG"
+/usr/bin/sed -i '' 's/^avd.name=.*/avd.name=Pixel_7_API_35_ARM64/' "$AVD_CONFIG"
+/usr/bin/sed -i '' 's/^hw.gpu.enabled=.*/hw.gpu.enabled=yes/' "$AVD_CONFIG"
 ```
+
+注意：本机第一次 CLI 创建后 `avd.id` / `avd.name` 出现 `<build>` 占位值，emulator 早退且 log 只停在 `Found systemPath`。修正上述字段后，Pixel 7 AVD 可正常进入 QEMU main loop。
 
 验证：
 
@@ -316,9 +325,84 @@ total time = 156.18 ms / 8 tokens
 Host memory = 3295 MiB
 ```
 
+### Pixel 7 AVD Smoke Result
+
+本机已完成 `Pixel_7_API_35_ARM64` smoke。该 AVD 使用 `pixel_7` device profile、`android-35`、`google_apis`、`arm64-v8a`、RAM `8192MB`、data partition `12G`。
+
+设备侧确认：
+
+```text
+adb devices -l: emulator-5554 device product:sdk_gphone64_arm64 model:sdk_gphone64_arm64 device:emu64a
+ro.product.model: sdk_gphone64_arm64
+ro.product.device: emu64a
+ro.product.cpu.abi: arm64-v8a
+ro.build.version.sdk: 35
+ro.build.version.release: 15
+MemTotal: 8129460 kB
+/data after push: 12G size, 4.0G used, 7.4G available
+```
+
+Push 结果：
+
+```text
+ggml-stage4-Q4_K_M.gguf: 3427878176 bytes pushed
+llama-completion + libllama*.so + libggml*.so pushed to /data/local/tmp/edge-bench/
+```
+
+first-token smoke：
+
+```bash
+adb -s emulator-5554 shell 'cd /data/local/tmp/edge-bench && \
+  LD_LIBRARY_PATH=. ./llama-completion \
+    -m ggml-stage4-Q4_K_M.gguf \
+    -p "hello" \
+    -n 1 \
+    -c 512 \
+    -b 64 \
+    -ub 32 \
+    -t 4 \
+    --temp 0 \
+    --no-display-prompt \
+    -no-cnv'
+```
+
+结果：退出码 `0`，模型成功加载并完成 first-token path。
+
+可读短输出 smoke：
+
+```bash
+adb -s emulator-5554 shell 'cd /data/local/tmp/edge-bench && \
+  LD_LIBRARY_PATH=. ./llama-completion \
+    -m ggml-stage4-Q4_K_M.gguf \
+    -p "The capital of France is" \
+    -n 8 \
+    -c 512 \
+    -b 64 \
+    -ub 32 \
+    -t 4 \
+    --temp 0 \
+    --no-display-prompt \
+    -no-cnv'
+```
+
+输出包含：
+
+```text
+Paris.
+```
+
+关键性能片段：
+
+```text
+prompt eval time = 109.06 ms / 6 tokens (55.01 tokens per second)
+eval time = 50.10 ms / 2 runs (39.92 tokens per second)
+total time = 160.83 ms / 8 tokens
+Host memory = 3295 MiB
+```
+
 ### Generic Target Command
 
-后续换成 Pixel 7 AVD 时，可以沿用同一条形状：
+后续重跑或换成真机时，可以沿用同一条形状：
 
 ```bash
 adb shell mkdir -p /data/local/tmp/edge-bench
@@ -360,4 +444,4 @@ W3 Android 这一步完成的最小验收：
 - Q4_K_M GGUF 可以被 push 到 emulator 并跑出 first token。
 - `edge-bench/docs/04-deploy-android-emulator.md` 记录了当前 emulator 限制和 LiteRT-LM base-only fallback 边界。
 
-当前本机已经达到的是“Android SDK + ARM64 tablet emulator + llama.cpp Android ARM64 binary + Q4_K_M GGUF first-token smoke”。还未达到 W3 最终验收的是 Pixel 7 AVD 口径和 LiteRT-LM AAR base-only demo。
+当前本机已经达到的是“Android SDK + Pixel 7 ARM64 AVD + llama.cpp Android ARM64 binary + Q4_K_M GGUF first-token smoke”。还未达到 W3 扩展目标的是 LiteRT-LM AAR base-only demo。

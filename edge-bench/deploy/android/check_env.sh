@@ -109,8 +109,9 @@ if [ -d "$AVD_ROOT" ]; then
     abi="$(grep -E '^abi.type=' "$config" | cut -d= -f2- || true)"
     target="$(grep -E '^target=' "$config" | cut -d= -f2- || true)"
     ram="$(grep -E '^hw.ramSize=' "$config" | cut -d= -f2- || true)"
+    data_size="$(grep -E '^disk.dataPartition.size=' "$config" | cut -d= -f2- || true)"
     image="$(grep -E '^image.sysdir.1=' "$config" | cut -d= -f2- || true)"
-    info "$name: display=${display:-unknown}, device=${device:-unknown}, abi=${abi:-unknown}, target=${target:-unknown}, ram=${ram:-unknown}MB, image=${image:-unknown}"
+    info "$name: display=${display:-unknown}, device=${device:-unknown}, abi=${abi:-unknown}, target=${target:-unknown}, ram=${ram:-unknown}MB, data=${data_size:-unknown}, image=${image:-unknown}"
     if [ "$device" = "pixel_7" ] || [ "$display" = "Pixel 7" ]; then
       pixel7_found=1
     fi
