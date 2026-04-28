@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import argparse
 import json
-import re
 import sys
 from pathlib import Path
 
@@ -27,111 +26,26 @@ from probe.behavior_eval import (
     summarize_behavior_metrics,
     unsafe_direct_call,
 )
+from probe.parse import (
+    arguments_match,
+    normalize_expected_tool_call,
+    normalize_predicted_tool_call,
+    parse_tool_calls as _parse_tool_calls_inner,
+)
 
 
 def load_jsonl(path: Path) -> list[dict]:
     return [json.loads(line) for line in path.read_text(encoding="utf-8").splitlines() if line.strip()]
 
 
-def normalize_expected_tool_call(tool_call: dict) -> dict:
-    if "function" in tool_call:
-        function = tool_call["function"]
-        arguments = function.get("arguments", {})
-        if isinstance(arguments, str):
-            arguments = json.loads(arguments)
-        return {"name": function["name"], "arguments": arguments}
-    return {
-        "name": tool_call["name"],
-        "arguments": tool_call.get("arguments", {}),
-    }
-
-
-def normalize_predicted_tool_call(tool_call: dict) -> dict:
-    if "function" in tool_call:
-        tool_call = tool_call["function"]
-    arguments = tool_call.get("arguments", {})
-    if isinstance(arguments, str):
-        try:
-            arguments = json.loads(arguments)
-        except json.JSONDecodeError:
-            arguments = {"raw": arguments}
-    return {
-        "name": tool_call.get("name", "unknown"),
-        "arguments": arguments if isinstance(arguments, dict) else {"raw": arguments},
-    }
-
-
-def arguments_match(expected_calls: list[dict], predicted_calls: list[dict]) -> bool:
-    if len(expected_calls) != len(predicted_calls):
-        return False
-    for expected, predicted in zip(expected_calls, predicted_calls):
-        if expected != predicted:
-            return False
-    return True
-
-
-def extract_json_object(text: str) -> dict | list | None:
-    stripped = text.strip()
-    for candidate in (stripped,):
-        try:
-            return json.loads(candidate)
-        except json.JSONDecodeError:
-            pass
-    for pattern in (r"(\{.*\})", r"(\[.*\])"):
-        match = re.search(pattern, stripped, re.DOTALL)
-        if match:
-            try:
-                return json.loads(match.group(1))
-            except json.JSONDecodeError:
-                continue
-    return None
-
-
 def parse_tool_calls(raw_output: str, tokenizer, tools: list[dict] | None) -> tuple[dict | None, str | None]:
-    stripped = raw_output.strip()
-    parser = getattr(tokenizer, "tool_parser", None)
-    start_marker = getattr(tokenizer, "tool_call_start", None)
-    end_marker = getattr(tokenizer, "tool_call_end", None)
-    parse_error = None
-
-    if parser is not None and start_marker and end_marker and start_marker in stripped and end_marker in stripped:
-        segments = []
-        cursor = 0
-        while True:
-            start = stripped.find(start_marker, cursor)
-            if start < 0:
-                break
-            end = stripped.find(end_marker, start + len(start_marker))
-            if end < 0:
-                break
-            payload = stripped[start + len(start_marker):end]
-            try:
-                segments.append(normalize_predicted_tool_call(parser(payload, tools)))
-            except Exception as exc:
-                parse_error = str(exc)
-            cursor = end + len(end_marker)
-        if segments:
-            return {"tool_calls": segments}, None
-
-    if parser is not None:
-        try:
-            return {"tool_calls": [normalize_predicted_tool_call(parser(stripped, tools))]}, None
-        except Exception as exc:
-            parse_error = str(exc)
-        else:
-            parse_error = None
-
-    json_payload = extract_json_object(stripped)
-    if isinstance(json_payload, dict):
-        if "tool_calls" in json_payload and isinstance(json_payload["tool_calls"], list):
-            return {
-                "tool_calls": [normalize_predicted_tool_call(call) for call in json_payload["tool_calls"]]
-            }, parse_error
-        if "name" in json_payload:
-            return {"tool_calls": [normalize_predicted_tool_call(json_payload)]}, parse_error
-    if isinstance(json_payload, list) and all(isinstance(item, dict) for item in json_payload):
-        return {"tool_calls": [normalize_predicted_tool_call(item) for item in json_payload]}, parse_error
-    return None, parse_error
+    return _parse_tool_calls_inner(
+        raw_output,
+        tools,
+        parser=getattr(tokenizer, "tool_parser", None),
+        start_marker=getattr(tokenizer, "tool_call_start", None),
+        end_marker=getattr(tokenizer, "tool_call_end", None),
+    )
 
 
 def main() -> None:
