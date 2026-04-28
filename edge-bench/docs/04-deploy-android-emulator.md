@@ -426,12 +426,55 @@ adb shell /data/local/tmp/edge-bench/llama-completion \
 - 不声称 fused LoRA 已可转 `.litertlm`。
 - emulator 上的 LiteRT-LM 性能只写作“工程可行性 demo”，不作为真实性能基准，因为 emulator 不等价于 Pixel GPU / NNAPI / NPU。
 
-后续如果接 AAR，最小目标是：
+当前已新增最小 Android AAR smoke app：
 
-1. 建一个最小 Android project。
-2. 接入 LiteRT-LM AAR 或官方 Gradle artifact。
-3. 加载官方 base-only `.litertlm`。
-4. 跑单条 prompt，记录 first-token-out。
+```text
+edge-bench/deploy/android/litert_lm_smoke/
+```
+
+它使用官方 Maven 依赖：
+
+```kotlin
+implementation("com.google.ai.edge.litertlm:litertlm-android:0.10.2")
+```
+
+版本 `0.10.2` 来自 Google Maven metadata，查询时间为 2026-04-28。
+
+最小运行入口：
+
+```bash
+edge-bench/deploy/android/litert_lm_smoke/run_smoke.sh
+```
+
+当前 Pixel 7 AVD 结果：
+
+```text
+Gradle assembleDebug: success
+adb install: success
+.litertlm push: success
+Activity launch: success
+LiteRT-LM native runtime: SIGILL in liblitertlm_jni.so during Engine.initialize()
+```
+
+关键 log signature：
+
+```text
+SMOKE_START model=/data/local/tmp/edge-bench/gemma-4-E2B-it.litertlm prompt=What is the capital of France?
+Fatal signal 4 (SIGILL), code 1 (ILL_ILLOPC)
+liblitertlm_jni.so
+Java_com_google_ai_edge_litertlm_LiteRtLmJni_nativeCreateEngine
+```
+
+结论：AAR / Gradle / install / model push / Activity launch 这条工程链路已经打通；Pixel 7 emulator 上无法完成 LiteRT-LM runtime first-token，因为官方 native 库在 emulator guest 内触发非法指令。下一步需要真机 ARM64 验证。
+
+最小目标拆分：
+
+| 目标 | 当前状态 |
+|---|---|
+| 建一个最小 Android project | done |
+| 接入 LiteRT-LM AAR / Gradle artifact | done |
+| 加载官方 base-only `.litertlm` | blocked by emulator SIGILL during `Engine.initialize()` |
+| 跑单条 prompt，记录 first-token-out | needs physical device |
 
 ## Acceptance
 
@@ -442,6 +485,6 @@ W3 Android 这一步完成的最小验收：
 - Android NDK r26+ 可用。
 - llama.cpp Android ARM64 binary 可以在 emulator 上执行。
 - Q4_K_M GGUF 可以被 push 到 emulator 并跑出 first token。
-- `edge-bench/docs/04-deploy-android-emulator.md` 记录了当前 emulator 限制和 LiteRT-LM base-only fallback 边界。
+- `edge-bench/docs/04-deploy-android-emulator.md` 记录了当前 emulator 限制和 LiteRT-LM base-only fallback / AAR smoke 边界。
 
-当前本机已经达到的是“Android SDK + Pixel 7 ARM64 AVD + llama.cpp Android ARM64 binary + Q4_K_M GGUF first-token smoke”。还未达到 W3 扩展目标的是 LiteRT-LM AAR base-only demo。
+当前本机已经达到的是“Android SDK + Pixel 7 ARM64 AVD + llama.cpp Android ARM64 binary + Q4_K_M GGUF first-token smoke + LiteRT-LM Android AAR build/install/launch”。还未达到 W3 扩展目标的是 LiteRT-LM runtime first-token，需要物理 ARM64 设备验证。
