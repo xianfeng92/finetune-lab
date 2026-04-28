@@ -39,6 +39,7 @@
 - 🍎 **Apple Silicon 友好** — 默认走 `mlx-lm.lora`，不需要 CUDA / 不需要云
 - 🎓 **教学占位 + 真训练双轨** — `simulated` 路径让你不下大模型也能走通流程；`real-*` 路径才真跑
 - 🧪 **probe 严格不泄漏** — 不只是 row-level held-out，还有 `make data-benchmark` 的 **template-level group split**：训练和 held-out 不共享任何 prompt 模板，避免"模板复现"被误读成"泛化学会"
+- 🧭 **Edge Inference Bench** — 同一 Gemma 4 E2B LoRA 跑 MLX / llama.cpp / LiteRT-LM 对照，暴露 `num_kv_shared_layers` 跨引擎不一致导致的 PolicyGateway 安全语义丢失
 - 📡 **半实时训练看板** — Observatory tab 在训练时每 2 秒轮询 `run-live-status.json`，看 step / loss / CPU / 内存往前走，不用 tail 日志
 - 📊 **Web 实验台** — Beginner Guide / Observatory / Training Runs / Probe Compare 等 7 个 view，跑完不打开 jupyter 就能比 run
 - 🤖 **AI-native** — 仓库自带 `AGENTS.md` + `make ai-onboarding`，一句话就能交给 Claude / Codex 接手
@@ -86,6 +87,7 @@ data → │ data_pipeline  │ →  │ mlx-lm.lora    │ →  │ probe (held
 | 数据生成 | `make data-demo` / `make data-benchmark` | `data/sft/v1-seed-anchor-demo/{samples,train,held-out}.jsonl` | [training/data_pipeline/README.md](training/data_pipeline/README.md) |
 | 真实微调 | `make real-stage-curriculum` | `outputs/gemma4-e2b-real-mlx-lora-*/adapter/` | [docs/ai/gemma4-real-finetune-guide.md](docs/ai/gemma4-real-finetune-guide.md) |
 | held-out probe | `make real-probe-mac` | `outputs/.../probe-results.jsonl` | [training/finetune/README.md](training/finetune/README.md) |
+| 端侧对照 | `edge-bench/bench/probe_llama_cpp.py` | `outputs/edge-bench/baselines/*/inference-probe-report.md` | [edge-bench/README.md](edge-bench/README.md) |
 | 半实时观测 | `make real-train-mac`（自动写 live status） | `outputs/.../run-live-status.json`<br/>`web/public/run-live/index.json` | [docs/changes/2026-04-26-training-observatory-live-status-impl-notes.md](docs/changes/2026-04-26-training-observatory-live-status-impl-notes.md) |
 | 可视化 | `make web-build` | `web/dist/` (静态 HTML) | [web/README.md](web/README.md) |
 
@@ -111,6 +113,21 @@ make real-probe-mac
 ```
 
 Web 实验台会同屏列出 SIM 和 REAL run，并默认在 Probe Compare 折叠 SIM 占位，避免误读。
+
+---
+
+## Edge Inference Bench
+
+`edge-bench/` 把 finetune-lab 的车机 tool-calling LoRA 推到端侧推理对照：MLX 作为训练侧 ground truth，llama.cpp 跑 fused GGUF fp16 / Q4_K_M，LiteRT-LM 当前作为官方 base-only fallback。
+
+当前 W2 结论很明确：MLX with LoRA 在 144 条 strict benchmark 上 4 维 PolicyGateway 全 100%；同一 LoRA fuse 到 llama.cpp GGUF 后，`behavior_accuracy` 约 60%，`unsafe_direct_call_rate` 变成 24/144，`confirmation_contract_hit` 和 `refusal_contract_hit` 都掉到 0/12。fp16 与 Q4_K_M 几乎一致，说明主因不是量化，而是 Gemma 4 `num_kv_shared_layers` 在训练侧 compat shim 与 llama.cpp 推理侧之间的架构假设不一致。
+
+入口：
+
+- [edge-bench/README.md](edge-bench/README.md)
+- [edge-bench/docs/05-benchmark-results.md](edge-bench/docs/05-benchmark-results.md)
+- [edge-bench/docs/06-policygateway-cross-engine.md](edge-bench/docs/06-policygateway-cross-engine.md)
+- [edge-bench/docs/07-pitfalls-and-decisions.md](edge-bench/docs/07-pitfalls-and-decisions.md)
 
 ---
 
