@@ -18,8 +18,8 @@ function readViewFromHash(): View | null {
 }
 
 const NAV_ITEMS: Array<[View, string]> = [
-  ["beginner-guide", "Beginner Guide"],
   ["overview", "Overview"],
+  ["beginner-guide", "Beginner Guide"],
   ["onboarding", "Agent Handoff"],
   ["data", "Data Pipeline"],
   ["observatory", "Observatory"],
@@ -28,7 +28,7 @@ const NAV_ITEMS: Array<[View, string]> = [
 ];
 
 export default function App() {
-  const [view, setViewState] = useState<View>(() => readViewFromHash() ?? "beginner-guide");
+  const [view, setViewState] = useState<View>(() => readViewFromHash() ?? "overview");
   const [labData, setLabData] = useState<LabData | null>(null);
   const [loadError, setLoadError] = useState<string | null>(null);
 

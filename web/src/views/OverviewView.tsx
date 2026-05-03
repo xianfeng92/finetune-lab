@@ -1,5 +1,5 @@
 import { memo } from "react";
-import type { LabData } from "../data-layer";
+import type { LabData, RunSummary } from "../data-layer";
 import { Term } from "../components/Term";
 import {
   AudienceChip,
@@ -11,38 +11,223 @@ import {
 } from "../components/ui";
 import type { View } from "../ui-types";
 
+function runTitle(run: RunSummary | null | undefined) {
+  return run ? run.manifest.title || run.manifest.run_id : "—";
+}
+
+function exactRate(run: RunSummary) {
+  return run.metrics.total ? run.metrics.exactNameMatch / run.metrics.total : 0;
+}
+
+function lossDelta(run: RunSummary) {
+  const curve = run.trainingCurve;
+  if (curve.loss_delta_pct !== null && Number.isFinite(curve.loss_delta_pct)) return curve.loss_delta_pct;
+  if (curve.first_loss === null || curve.last_loss === null || curve.first_loss === 0) return null;
+  return ((curve.first_loss - curve.last_loss) / Math.abs(curve.first_loss)) * 100;
+}
+
+function lossRange(run: RunSummary) {
+  const curve = run.trainingCurve;
+  if (curve.first_loss !== null && curve.last_loss !== null) {
+    return `${curve.first_loss.toFixed(2)}→${curve.last_loss.toFixed(2)}`;
+  }
+  const points = curve.points;
+  if (!points.length) return "—";
+  return `${points[0].loss.toFixed(2)}→${points[points.length - 1].loss.toFixed(2)}`;
+}
+
+function realProbeRuns(runs: RunSummary[]) {
+  return runs.filter((run) => (
+    run.manifest.training_mode !== "simulated"
+    && run.metrics.total >= 8
+    && run.trainingCurve.points.length > 0
+  ));
+}
+
+function pickBestProbeRun(runs: RunSummary[]) {
+  const candidates = realProbeRuns(runs);
+  if (!candidates.length) return null;
+  return [...candidates].sort((a, b) => {
+    const byRate = exactRate(b) - exactRate(a);
+    if (byRate !== 0) return byRate;
+    return b.metrics.total - a.metrics.total;
+  })[0];
+}
+
+function pickLossTrapRun(runs: RunSummary[]) {
+  const candidates = realProbeRuns(runs).filter((run) => {
+    const delta = lossDelta(run);
+    return delta !== null && delta >= 50;
+  });
+  if (!candidates.length) return null;
+  return [...candidates].sort((a, b) => {
+    const byExact = exactRate(a) - exactRate(b);
+    if (byExact !== 0) return byExact;
+    return (lossDelta(b) ?? 0) - (lossDelta(a) ?? 0);
+  })[0];
+}
+
 function StarterGuide(props: { onPick: (view: View) => void }) {
   return (
     <section className="panel span-2 starter-guide">
       <header className="section-title">
         <div className="section-title-row">
-          <div className="eyebrow">从这里开始</div>
+          <div className="eyebrow">Start Here</div>
           <AudienceChip audience="新手" />
         </div>
-        <h2>不知道先看哪儿？</h2>
-        <p>三种典型用户，三个起点。点一下直接跳过去。</p>
+        <h2>微调第一次看懂：先按这个顺序点</h2>
+        <p>首页先回答新手最关心的三个问题：微调在学什么、loss 为什么会骗人、我下一步该跑哪条链路。</p>
       </header>
       <div className="starter-grid">
         <button type="button" className="starter-card" onClick={() => props.onPick("beginner-guide")}>
-          <div className="starter-eyebrow">完全没微调过</div>
+          <div className="starter-eyebrow">01 · 5 分钟建立心智</div>
           <h3>先读 Beginner Guide</h3>
-          <p>系统讲清楚什么是 SFT / LoRA / probe，为什么 loss ≠ 学到了。新手第一站。看完再回头看其它 tab。</p>
+          <p>用人话讲清楚 <Term term="sft">SFT</Term>、<Term term="lora">LoRA</Term>、<Term term="probe">probe</Term>，先别急着跑命令。</p>
+        </button>
+        <button type="button" className="starter-card" onClick={() => props.onPick("data")}>
+          <div className="starter-eyebrow">02 · 看模型吃什么</div>
+          <h3>打开 Data</h3>
+          <p>先看 SFT 样本、schema、held-out 是怎么切的。数据不是配角，它决定模型能学到什么行为。</p>
         </button>
         <button type="button" className="starter-card" onClick={() => props.onPick("runs")}>
-          <div className="starter-eyebrow">想看真训练能跑出什么</div>
-          <h3>跳到 Observatory</h3>
-          <p>看专业微调看板：train / val loss、throughput、peak memory、behavior KPI 都集中在一页。更适合直接理解“训练过程正在发生什么”。</p>
-        </button>
-        <button type="button" className="starter-card" onClick={() => props.onPick("runs")}>
-          <div className="starter-eyebrow">想盘所有 run 和产物</div>
+          <div className="starter-eyebrow">03 · 看训练过程</div>
           <h3>跳到 Training Runs</h3>
-          <p>所有 <Term term="real run">real run</Term> 和 <Term term="simulated">simulated</Term> 占位的 loss 曲线、产物文件都在这里。SIM 是教学占位，REAL 是真跑。</p>
+          <p>把 <Term term="real run">real run</Term> 和 <Term term="simulated">simulated</Term> 分开看：loss 曲线只说明训练在动。</p>
         </button>
         <button type="button" className="starter-card" onClick={() => props.onPick("compare")}>
-          <div className="starter-eyebrow">想知道哪个 run 最好</div>
+          <div className="starter-eyebrow">04 · 用考试判结果</div>
           <h3>跳到 Probe Compare</h3>
-          <p>用 <Term term="held-out">held-out</Term> <Term term="probe">probe</Term> 横向比所有 run 的命中率。注意：不同 run 的分母可能不同，看每张卡。</p>
+          <p>用 <Term term="held-out">held-out</Term> <Term term="probe">probe</Term> 横向比命中率。结论从这里出，不从 loss 出。</p>
         </button>
+      </div>
+    </section>
+  );
+}
+
+function LossTrapPanel(props: { data: LabData; onPick: (view: View) => void }) {
+  const trapRun = pickLossTrapRun(props.data.runs);
+  const bestRun = pickBestProbeRun(props.data.runs);
+  if (!trapRun && !bestRun) return null;
+  const trapDelta = trapRun ? lossDelta(trapRun) : null;
+  const bestDelta = bestRun ? lossDelta(bestRun) : null;
+  return (
+    <section className="panel span-2 loss-trap-panel">
+      <header className="section-title">
+        <div className="section-title-row">
+          <div className="eyebrow">爆火入口 01</div>
+          <AudienceChip audience="新手" />
+        </div>
+        <h2>Loss Trap：loss 降了，不代表模型学会</h2>
+        <p>把微调最容易误解的一点放在首页：训练曲线是体温计，held-out probe 才是成绩单。</p>
+      </header>
+      <div className="loss-trap-grid">
+        {trapRun ? (
+          <article className="loss-trap-card warning">
+            <div className="starter-eyebrow">漂亮曲线，但别急着开心</div>
+            <h3>{runTitle(trapRun)}</h3>
+            <dl className="loss-trap-stats">
+              <div>
+                <dt>train loss</dt>
+                <dd>{lossRange(trapRun)}</dd>
+              </div>
+              <div>
+                <dt>loss drop</dt>
+                <dd>{trapDelta !== null ? `${Math.round(trapDelta)}%` : "—"}</dd>
+              </div>
+              <div>
+                <dt>probe exact</dt>
+                <dd>{formatRatio(trapRun.metrics.exactNameMatch, trapRun.metrics.total)}</dd>
+              </div>
+            </dl>
+            <p>这条 run 的 loss 很会“讲故事”，但 held-out exact 很低。它适合作为新手第一课：别用训练集曲线替代行为评测。</p>
+          </article>
+        ) : null}
+        {bestRun ? (
+          <article className="loss-trap-card success">
+            <div className="starter-eyebrow">真正要看的证据</div>
+            <h3>{runTitle(bestRun)}</h3>
+            <dl className="loss-trap-stats">
+              <div>
+                <dt>train loss</dt>
+                <dd>{lossRange(bestRun)}</dd>
+              </div>
+              <div>
+                <dt>loss drop</dt>
+                <dd>{bestDelta !== null ? `${Math.round(bestDelta)}%` : "—"}</dd>
+              </div>
+              <div>
+                <dt>probe exact</dt>
+                <dd>{formatRatio(bestRun.metrics.exactNameMatch, bestRun.metrics.total)}</dd>
+              </div>
+            </dl>
+            <p>这类 run 才能进入“学到了吗”的讨论：loss 只是旁证，probe exact、parsed JSON、tool signal 一起看。</p>
+          </article>
+        ) : null}
+      </div>
+      <div className="launch-actions">
+        <button type="button" className="launch-action primary" onClick={() => props.onPick("runs")}>看 loss 曲线</button>
+        <button type="button" className="launch-action" onClick={() => props.onPick("compare")}>看 probe 对比</button>
+      </div>
+    </section>
+  );
+}
+
+function RecipeGalleryPanel(props: { onPick: (view: View) => void }) {
+  const recipes: Array<{
+    step: string;
+    title: string;
+    question: string;
+    action: string;
+    view: View;
+  }> = [
+    {
+      step: "Path 01",
+      title: "loss-is-lying",
+      question: "为什么 loss 快降到地板，模型还是会选错工具？",
+      action: "从 Beginner Guide 开始",
+      view: "beginner-guide",
+    },
+    {
+      step: "Path 02",
+      title: "first-lora",
+      question: "第一次真实 LoRA 训练会产出哪些文件？adapter 到底在哪里？",
+      action: "看 Training Runs",
+      view: "runs",
+    },
+    {
+      step: "Path 03",
+      title: "tool-calling",
+      question: "小模型微调最适合学什么？先从工具名、参数和 JSON 结构入手。",
+      action: "看 Data",
+      view: "data",
+    },
+    {
+      step: "Path 04",
+      title: "curriculum-vs-direct",
+      question: "课程式分阶段训练一定比直接 mixed 训练好吗？用真实 run 对比回答。",
+      action: "看 Probe Compare",
+      view: "compare",
+    },
+  ];
+  return (
+    <section className="panel span-2 recipe-gallery">
+      <header className="section-title">
+        <div className="section-title-row">
+          <div className="eyebrow">Recipe Gallery</div>
+          <AudienceChip audience="工程" />
+        </div>
+        <h2>四条可传播学习路径</h2>
+        <p>不是堆文档，而是给学习者四个可以截图、可以发帖、可以复现的问题。</p>
+      </header>
+      <div className="recipe-grid">
+        {recipes.map((recipe) => (
+          <button key={recipe.title} type="button" className="recipe-card" onClick={() => props.onPick(recipe.view)}>
+            <div className="recipe-step">{recipe.step}</div>
+            <h3>{recipe.title}</h3>
+            <p>{recipe.question}</p>
+            <span>{recipe.action}</span>
+          </button>
+        ))}
       </div>
     </section>
   );
@@ -58,15 +243,7 @@ function ManifestoHero(props: { data: LabData }) {
     return ta - tb;
   });
   const latestRealRun = sortedByTime[sortedByTime.length - 1] ?? realTopLevelRuns[realTopLevelRuns.length - 1] ?? runs[runs.length - 1];
-  const probeCandidates = runs.filter((r) => r.manifest.training_mode !== "simulated" && r.metrics.total >= 8);
-  const bestProbeRun = probeCandidates.length
-    ? [...probeCandidates].sort((a, b) => {
-        const ra = a.metrics.exactNameMatch / a.metrics.total;
-        const rb = b.metrics.exactNameMatch / b.metrics.total;
-        if (rb !== ra) return rb - ra;
-        return b.metrics.total - a.metrics.total;
-      })[0]
-    : null;
+  const bestProbeRun = pickBestProbeRun(runs);
   const first = runs[0];
   const latestStepRun = runs[runs.length - 1];
   const latestPoints = latestRealRun?.trainingCurve?.points ?? [];
@@ -101,7 +278,7 @@ function ManifestoHero(props: { data: LabData }) {
         <KpiCard
           label="best probe exact"
           value={bestProbePct !== null ? `${bestProbePct}%` : "—"}
-          hint={bestProbeRun ? `${bestProbeRun.manifest.title} · ${bestProbeRatio} on held-out` : "no probe yet"}
+          hint={bestProbeRun ? `${runTitle(bestProbeRun)} · ${bestProbeRatio} on held-out` : "no probe yet"}
           accent
         />
         <KpiCard
@@ -881,6 +1058,8 @@ function OverviewViewImpl(props: { data: LabData; onPick: (view: View) => void }
   return (
     <div className="view-grid">
       <StarterGuide onPick={props.onPick} />
+      <LossTrapPanel data={props.data} onPick={props.onPick} />
+      <RecipeGalleryPanel onPick={props.onPick} />
       <section className="panel span-2">
         <ManifestoHero data={props.data} />
       </section>
