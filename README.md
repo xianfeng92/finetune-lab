@@ -2,8 +2,8 @@
 
 # finetune-lab
 
-**把 SFT 数据生成 → LoRA 微调 → held-out probe → 可视化对比这条链路**
-**收成一个仓库 + 一个交互站点。**
+**微调第一次看懂：不要只盯 loss 曲线，要看模型行为有没有真的改变。**
+**SFT 数据 → LoRA 微调 → held-out probe → case diff → Web 实验课。**
 
 [![Deploy web to GitHub Pages](https://github.com/xianfeng92/finetune-lab/actions/workflows/pages.yml/badge.svg)](https://github.com/xianfeng92/finetune-lab/actions/workflows/pages.yml)
 [![Live demo](https://img.shields.io/badge/Live%20demo-xianfeng92.github.io%2Ffinetune--lab-d4ff3a)](https://xianfeng92.github.io/finetune-lab/)
@@ -15,39 +15,46 @@
 
 [![finetune-lab Overview](docs/assets/preview-overview.png)](https://xianfeng92.github.io/finetune-lab/)
 
+**训练 loss 降了，不代表模型学会。**
+`finetune-lab` 会把训练结果放回 held-out probe 和 case-level diff 里看：模型到底有没有选对工具、填对参数、输出合法 JSON、做出正确行为。
+
 </div>
 
 ---
 
 ## 这个仓库解决什么
 
-模型微调这个领域的入门资料分两类：要么是只讲概念的 blog（"什么是 LoRA"），要么是只贴脚本的 cookbook（"跑这条命令"）。**夹在中间的"我把 case 跑通了，现在能不能看到模型到底学到了什么"** 几乎没人系统讲。
+模型微调的入门资料常常分成两类：要么只讲概念（"什么是 LoRA / SFT"），要么只贴脚本（"跑这条命令"）。真正让新手卡住的是中间这步：
 
-`finetune-lab` 把这条链路收进一个仓库：
+> 我把训练跑完了，loss 也降了，模型到底学到了什么？
+
+`finetune-lab` 把这个问题做成一条可跑、可看、可解释的学习链路：
 
 1. **生成 SFT 数据** —— 单工具 / 多工具 / curriculum / preference pairs 都现成
 2. **本地真实微调** —— Apple Silicon 上的 `mlx-lm.lora`，几十到几百 step 的真小规模 run
-3. **held-out probe** —— 训练完拿独立子集去测，看模型选对工具没、参数对没、行为合不合规
-4. **Web 实验台** —— 把上面三步的所有产物（loss 曲线 / probe 命中率 / 失败 case diff）摊在一个浏览器里横向比
+3. **held-out probe** —— 拿没参与训练的样本去测，看模型有没有真的泛化
+4. **case diff 可视化** —— 同屏看 input / expected / actual，定位模型到底哪里学会、哪里没学会
 
-整条链路的入口是 `make`：[ai-onboarding](#quick-start--60-秒上手) 探仓库、`ai-setup` 装依赖、`ai-lab` 把最小教学闭环跑一遍。
+整条链路的入口是 `make`：[ai-onboarding](#quick-start--60-秒上手) 探仓库、`ai-setup` 装依赖、`ai-lab` 把最小教学闭环跑一遍。你也可以先看 [在线 demo](https://xianfeng92.github.io/finetune-lab/)，不用安装任何依赖。
 
 ---
 
 ## Highlights
 
-- 🍎 **Apple Silicon 友好** — 默认走 `mlx-lm.lora`，不需要 CUDA / 不需要云
-- 🎓 **教学占位 + 真训练双轨** — `simulated` 路径让你不下大模型也能走通流程；`real-*` 路径才真跑
-- 🧪 **probe 严格不泄漏** — 不只是 row-level held-out，还有 `make data-benchmark` 的 **template-level group split**：训练和 held-out 不共享任何 prompt 模板，避免"模板复现"被误读成"泛化学会"
-- 🧭 **Edge Inference Bench** — 同一 Gemma 4 E2B LoRA 跑 MLX / llama.cpp / LiteRT-LM 对照，暴露 `num_kv_shared_layers` 跨引擎不一致导致的 PolicyGateway 安全语义丢失
-- 📡 **半实时训练看板** — Observatory tab 在训练时每 2 秒轮询 `run-live-status.json`，看 step / loss / CPU / 内存往前走，不用 tail 日志
-- 📊 **Web 实验台** — Beginner Guide / Observatory / Training Runs / Probe Compare 等 7 个 view，跑完不打开 jupyter 就能比 run
-- 🤖 **AI-native** — 仓库自带 `AGENTS.md` + `make ai-onboarding`，一句话就能交给 Claude / Codex 接手
-- 📚 **数据集治理** — 23+ 个数据集都自带 `dataset-card.md` + `redaction-report.md`，PII 扫描产物可看可审
+- 🎓 **微调第一次看懂** — 从一条 SFT 样本开始，看到 LoRA 训练、held-out probe、失败 case diff
+- 🧪 **loss trap 教学** — 明确展示 `loss 下降 != 学会了`，把训练曲线和行为评测分开看
+- 📊 **Web 实验课** — Beginner Guide / Data Pipeline / Training Runs / Probe Compare 等 view 全部从真实 artifacts 生成
+- 🧭 **4 条学习路径** — `loss-is-lying`、`first-lora`、`tool-calling`、`curriculum-vs-direct`
+- 🍎 **Apple Silicon 友好** — 默认真实路径走 `mlx-lm.lora`，不需要 CUDA / 不需要云
+- 🎛️ **教学占位 + 真训练双轨** — `SIM` 用来快速理解流程，`REAL` 才代表真实 LoRA 更新
+- 🤖 **AI-native** — 仓库自带 `AGENTS.md` + `make ai-onboarding`，可以交给 Codex / Claude 接手
+- 📚 **数据集治理和严肃 benchmark** — dataset cards、redaction reports、template-level held-out split 都有留档
 
 ---
 
 ## Quick start — 60 秒上手
+
+先看 demo，再本地跑。第一次不需要下载大模型，`make ai-lab` 会走最小教学闭环。
 
 ```bash
 git clone https://github.com/xianfeng92/finetune-lab.git
@@ -59,6 +66,19 @@ make ai-lab          # 跑最小教学闭环（data → simulated train → prob
 ```
 
 **不想本地跑？** 直接看在线 demo：[xianfeng92.github.io/finetune-lab](https://xianfeng92.github.io/finetune-lab/)
+
+---
+
+## 4 条首发学习路径
+
+| 学习路径 | 你会看懂什么 | 当前入口 |
+|---|---|---|
+| `loss-is-lying` | 为什么 loss 降了，模型仍然可能没学会 | [Training Runs](https://xianfeng92.github.io/finetune-lab/#/runs) + [Probe Compare](https://xianfeng92.github.io/finetune-lab/#/compare) |
+| `first-lora` | 第一次 LoRA 微调会产出哪些 adapter、manifest、metrics | `make ai-lab`，然后看 [Training Runs](https://xianfeng92.github.io/finetune-lab/#/runs) |
+| `tool-calling` | SFT 样本如何教模型选择工具、填参数、输出 JSON | [Data Pipeline](https://xianfeng92.github.io/finetune-lab/#/data) + [Probe Compare](https://xianfeng92.github.io/finetune-lab/#/compare) |
+| `curriculum-vs-direct` | 课程式训练和 direct mixed 训练在 probe 上有什么差异 | [Probe Compare](https://xianfeng92.github.io/finetune-lab/#/compare) + [real fine-tune guide](docs/ai/gemma4-real-finetune-guide.md) |
+
+这 4 条路径会逐步收成独立 recipe。现在已经能从 Web 和 artifacts 里看到核心证据。
 
 ---
 
