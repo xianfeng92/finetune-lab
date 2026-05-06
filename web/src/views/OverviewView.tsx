@@ -177,36 +177,41 @@ function RecipeGalleryPanel(props: { onPick: (view: View) => void }) {
     step: string;
     title: string;
     question: string;
-    action: string;
+    webAction: string;
     view: View;
+    href: string;
   }> = [
     {
       step: "Path 01",
       title: "loss-is-lying",
       question: "为什么 loss 快降到地板，模型还是会选错工具？",
-      action: "从 Beginner Guide 开始",
+      webAction: "看心智入口",
       view: "beginner-guide",
+      href: "https://github.com/xianfeng92/finetune-lab/blob/main/docs/recipes/loss-is-lying.md",
     },
     {
       step: "Path 02",
       title: "first-lora",
       question: "第一次真实 LoRA 训练会产出哪些文件？adapter 到底在哪里？",
-      action: "看 Training Runs",
+      webAction: "看训练产物",
       view: "runs",
+      href: "https://github.com/xianfeng92/finetune-lab/blob/main/docs/recipes/first-lora.md",
     },
     {
       step: "Path 03",
       title: "tool-calling",
       question: "小模型微调最适合学什么？先从工具名、参数和 JSON 结构入手。",
-      action: "看 Data",
+      webAction: "看数据样本",
       view: "data",
+      href: "https://github.com/xianfeng92/finetune-lab/blob/main/docs/recipes/tool-calling.md",
     },
     {
       step: "Path 04",
       title: "curriculum-vs-direct",
       question: "课程式分阶段训练一定比直接 mixed 训练好吗？用真实 run 对比回答。",
-      action: "看 Probe Compare",
+      webAction: "看 probe 对比",
       view: "compare",
+      href: "https://github.com/xianfeng92/finetune-lab/blob/main/docs/recipes/curriculum-vs-direct.md",
     },
   ];
   return (
@@ -221,12 +226,15 @@ function RecipeGalleryPanel(props: { onPick: (view: View) => void }) {
       </header>
       <div className="recipe-grid">
         {recipes.map((recipe) => (
-          <button key={recipe.title} type="button" className="recipe-card" onClick={() => props.onPick(recipe.view)}>
+          <article key={recipe.title} className="recipe-card">
             <div className="recipe-step">{recipe.step}</div>
             <h3>{recipe.title}</h3>
             <p>{recipe.question}</p>
-            <span>{recipe.action}</span>
-          </button>
+            <div className="recipe-actions">
+              <button type="button" onClick={() => props.onPick(recipe.view)}>{recipe.webAction}</button>
+              <a href={recipe.href} target="_blank" rel="noreferrer">读 Recipe</a>
+            </div>
+          </article>
         ))}
       </div>
     </section>
@@ -251,7 +259,7 @@ function ManifestoHero(props: { data: LabData }) {
   const lossFloor = latestPoints.length ? Math.min(...latestPoints.map((p) => p.loss)) : null;
   const bestProbeRatio = bestProbeRun ? `${bestProbeRun.metrics.exactNameMatch}/${bestProbeRun.metrics.total}` : "—";
   const bestProbePct = bestProbeRun ? Math.round((bestProbeRun.metrics.exactNameMatch / bestProbeRun.metrics.total) * 100) : null;
-  const headlineLines = (manifesto?.headline ?? "Clone it.\nHand it to an agent.\nWatch a model learn.").split("\n");
+  const headlineLines = (manifesto?.headline ?? "Clone it.\nHand it to an agent.\nWatch behavior change.").split("\n");
   return (
     <section className="manifesto">
       <div className="manifesto-head">

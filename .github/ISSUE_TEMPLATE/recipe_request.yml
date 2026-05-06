@@ -1,0 +1,56 @@
+name: Recipe request
+description: Suggest a new learning path or experiment recipe.
+title: "[Recipe]: "
+labels:
+  - recipe
+  - enhancement
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Recipes should answer one concrete fine-tuning question with commands, artifacts, and a short explanation.
+  - type: input
+    id: question
+    attributes:
+      label: Learning question
+      description: What should this recipe help someone understand?
+      placeholder: "Why can loss improve while held-out tool-call accuracy gets worse?"
+    validations:
+      required: true
+  - type: textarea
+    id: audience
+    attributes:
+      label: Who is this for?
+      description: Beginner, local fine-tuning learner, tool-calling engineer, runtime evaluator, etc.
+      placeholder: "A beginner who has run one LoRA training command but does not know how to inspect behavior."
+    validations:
+      required: true
+  - type: textarea
+    id: proposed_loop
+    attributes:
+      label: Proposed command loop
+      description: Which Makefile targets or workflow should the recipe use?
+      render: bash
+      placeholder: |
+        make data-demo
+        make smoke-train-mac
+        make probe-mac
+  - type: textarea
+    id: evidence
+    attributes:
+      label: Evidence or artifacts
+      description: What files, screenshots, or metrics would make the recipe convincing?
+      placeholder: |
+        data/sft/.../held-out.jsonl
+        outputs/.../inference-probe-report.md
+        web route or screenshot
+  - type: checkboxes
+    id: guardrails
+    attributes:
+      label: Guardrails
+      options:
+        - label: This recipe will not describe SIM runs as real LoRA training.
+          required: true
+        - label: Runtime claims will be limited to verified artifacts.
+          required: true
+

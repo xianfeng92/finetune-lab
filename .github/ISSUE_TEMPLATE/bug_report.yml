@@ -1,0 +1,66 @@
+name: Bug report
+description: Report a broken command, incorrect artifact, or confusing behavior.
+title: "[Bug]: "
+labels:
+  - bug
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for reporting this. Please include the command and artifact path so we can reproduce the learning loop.
+  - type: textarea
+    id: problem
+    attributes:
+      label: What happened?
+      description: Describe the broken behavior or confusing result.
+      placeholder: "`make ai-lab` failed during probe-mac because ..."
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What did you expect?
+      description: What should have happened instead?
+    validations:
+      required: true
+  - type: textarea
+    id: commands
+    attributes:
+      label: Commands run
+      description: Paste the Makefile target or command sequence you used.
+      render: bash
+      placeholder: |
+        make ai-onboarding
+        make ai-lab
+    validations:
+      required: true
+  - type: textarea
+    id: artifacts
+    attributes:
+      label: Artifact paths
+      description: List the relevant files under data/, outputs/, web/public/, or docs/.
+      placeholder: |
+        outputs/agent/onboarding-report.json
+        outputs/gemma4-e2b-mlx-demo-unsloth-vlm/inference-probe-report.md
+  - type: dropdown
+    id: path
+    attributes:
+      label: Which path were you using?
+      options:
+        - AI onboarding / setup
+        - Data pipeline
+        - Simulated smoke train
+        - Real MLX LoRA
+        - Held-out probe / compare
+        - Web lab
+        - Edge runtime benchmark
+        - Documentation
+    validations:
+      required: true
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: Include OS, Python, Node, model/runtime, or relevant `make ai-onboarding` details.
+      placeholder: "macOS arm64, Python ..., Node ..."
+

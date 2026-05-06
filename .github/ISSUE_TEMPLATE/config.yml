@@ -1,0 +1,9 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Live demo
+    url: https://xianfeng92.github.io/finetune-lab/
+    about: Try the Web lab before filing a question.
+  - name: AI workflow docs
+    url: https://github.com/xianfeng92/finetune-lab/blob/main/docs/ai/workflows.md
+    about: Find the standard Makefile entrypoints and expected artifacts.
+

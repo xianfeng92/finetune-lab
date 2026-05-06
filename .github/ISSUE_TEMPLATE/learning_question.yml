@@ -1,0 +1,45 @@
+name: Learning question
+description: Ask where the fine-tuning loop is still confusing.
+title: "[Question]: "
+labels:
+  - question
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Use this when a concept, command, artifact, or Web view still feels unclear.
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Topic
+      options:
+        - SFT sample anatomy
+        - Train / held-out split
+        - LoRA training artifacts
+        - Loss vs probe behavior
+        - Tool calling / structured output
+        - Case diff
+        - SIM vs REAL runs
+        - Runtime parity / edge benchmark
+        - Agent onboarding
+        - Other
+    validations:
+      required: true
+  - type: textarea
+    id: question
+    attributes:
+      label: What is confusing?
+      description: Tell us where the learning path stopped making sense.
+      placeholder: "I understand the loss curve, but I do not know how to read exact_name_match vs arguments_match."
+    validations:
+      required: true
+  - type: textarea
+    id: context
+    attributes:
+      label: What did you already try or read?
+      description: Include commands, docs, web tabs, or artifact paths.
+      placeholder: |
+        make ai-lab
+        docs/ai/workflows.md
+        Probe Compare tab
+
